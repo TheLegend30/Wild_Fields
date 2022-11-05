@@ -230,7 +230,7 @@ public class Main {
 
         countries.add(new Country("Україна", "UKR", new Color(80, 218, 46),
                 new Country.Leader("Володимир Зеленський", Country.Ideology.VOLISM, "Слуга народу", 25),
-                new ArrayList<>(Arrays.asList(new Integer[] { 47, 49, 52, 34, 46, 68, 70 }))));
+                new ArrayList<>(Arrays.asList(new Integer[] { 47, 49, 52, 34, 46, 68 }))));
         countries.add(new Country("ЗСУ", "ZSU", new Color(236, 31, 120),
                 new Country.Leader("Валерій Залужний", Country.Ideology.TRADITIONALISM,
                         "Кліка Залужного", 45),
@@ -247,16 +247,19 @@ public class Main {
                 new Country.Leader("Олесь Янчук", Country.Ideology.SOCIAL_DEMOCRACY,
                         "Директорія - Петлюрівці", 65),
                 new ArrayList<>(Arrays.asList(new Integer[] { 71, 80 }))));
+        countries.add(new Country("Обіхувський Мегакомбінат", "OBH", new Color(10, 117, 223),
+                new Country.Leader("Віктор Семенець", Country.Ideology.ANARCHO_CAPITALISM,
+                        "Рада директорів", 95),
+                new ArrayList<>(Arrays.asList(new Integer[] { 70, 89, 119 }))));
         countries.add(new Country("ПЦУ", "PCU", new Color(146, 0, 10),
                 new Country.Leader("Митрополит Агапіт", Country.Ideology.RETROGRADISM,
                         "Ортодоксальне крило", 50),
-                new ArrayList<>(Arrays.asList(new Integer[] { 130, 137, 134, 119, 106, 98, 89
+                new ArrayList<>(Arrays.asList(new Integer[] { 130, 137, 134, 106, 98
                 }))));
         countries.add(new Country("Українська Комуністична Республіка", "UCR", new Color(213, 15, 15),
                 new Country.Leader("Петро Симоненко", Country.Ideology.BILSHOVISM,
                         "КПУ - Стара Гвардія", 85),
                 new ArrayList<>(Arrays.asList(new Integer[] { 13, 17 }))));
-
         countries.add(new Country("Соціалістична Республіка Україна", "SRU", new Color(216,
                 49, 155),
                 new Country.Leader("Ілля Кива", Country.Ideology.MENSHEVISM,
@@ -570,22 +573,56 @@ public class Main {
             mainMenu.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             mainMenu.setLocationByPlatform(true);
             mainMenu.setLayout(new FlowLayout());
-
             mainMenu.getContentPane().setBackground(Color.BLACK);
             mainMenu.setResizable(false);
 
+            JPanel startMenuPanel = new JPanel();
+            BoxLayout startMenuPanelBoxLayout = new BoxLayout(startMenuPanel, BoxLayout.Y_AXIS);
+            startMenuPanel.setLayout(startMenuPanelBoxLayout);
+            startMenuPanel.setBackground(Color.BLACK);
+
+            JPanel aboutCountryPanel = new JPanel(new FlowLayout());
+            aboutCountryPanel.setBackground(Color.BLACK);
+
+            JLabel flagPic = new JLabel();
+            JLabel portraitPic = new JLabel();
+            JTextArea aboutCountryLabel = new JTextArea();
+            aboutCountryLabel.setBackground(Color.BLACK);
+            aboutCountryLabel.setForeground(Color.CYAN);
+            aboutCountryLabel.setOpaque(true);
+
+            aboutCountryPanel.add(flagPic);
+            aboutCountryPanel.add(portraitPic);
+
             Country[] countriesArray = countriesToArray();
             JComboBox<Country> countrySelector = new JComboBox<>(countriesArray);
-
-            JButton buttonPlay = new JButton("Play");
-            buttonPlay.addActionListener(e -> {
+            countrySelector.addActionListener(e -> {
                 yourCountry = (Country) countrySelector.getSelectedItem();
+                flagPic.setIcon(new ImageIcon(yourCountry.getFlagPath()));
+                portraitPic.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
+                aboutCountryLabel.setText(yourCountry.toStringForStats());
+            });
+
+            yourCountry = (Country) countrySelector.getSelectedItem();
+            flagPic.setIcon(new ImageIcon(yourCountry.getFlagPath()));
+            portraitPic.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
+            aboutCountryLabel.setText(yourCountry.toStringForStats());
+
+            JButton buttonPlay = new JButton("Почати гру");
+            buttonPlay.addActionListener(e -> {
                 jFrame.setVisible(true);
                 mainMenu.dispose();
             });
+            JButton buttonExit = new JButton("Вийти");
+            buttonExit.addActionListener(e -> System.exit(0));
 
-            mainMenu.add(countrySelector);
-            mainMenu.add(buttonPlay);
+            startMenuPanel.add(countrySelector);
+            startMenuPanel.add(aboutCountryLabel);
+            startMenuPanel.add(aboutCountryPanel);
+            startMenuPanel.add(buttonPlay);
+            startMenuPanel.add(buttonExit);
+
+            mainMenu.add(startMenuPanel);
             mainMenu.pack();
 
             mainMenu.setVisible(true);
