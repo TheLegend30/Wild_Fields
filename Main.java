@@ -3,10 +3,15 @@ import java.awt.event.*;
 import java.awt.geom.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
+
 // TODO: Borders for pics
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -14,39 +19,48 @@ import javax.swing.event.MouseInputListener;
 import javax.imageio.ImageIO;
 
 public class Main {
+    public static SimpleDateFormat dateFormat = new SimpleDateFormat("d MMMM yyyy");
+    public static Calendar calendar = new GregorianCalendar(2028, Calendar.AUGUST, 24);
 
+    static String description = "";
     static Country yourCountry = new Country();
-    public final static String tempFlagPath = "files/flags/flag_%s.png";
-    public final static String tempPortraitPath = "files/portraits/portrait_%s.png";
-
     static JFrame jFrame;
     JPanel ui = null;
     JLabel output = new JLabel();
 
-    JPanel statsPanel = new JPanel();
-    BoxLayout boxLayout = new BoxLayout(statsPanel, BoxLayout.Y_AXIS);
+    JPanel gamePanel = new JPanel();
+    BoxLayout boxLayout = new BoxLayout(gamePanel, BoxLayout.Y_AXIS);
+
+    JPanel infoPanel = new JPanel();
 
     // INFO STATS
-    JTextArea countryStats = new JTextArea(yourCountry.toStringForStats());
+    public static JLabel calendarLabel = new JLabel(dateFormat.format(calendar.getTime()));
+    public static JTextArea regionStats = new JTextArea(Region.noRegion.toString());
+    public static JTextArea countryStats = new JTextArea(yourCountry.toStringForStats());
     // No country
-    ImageIcon flag = new ImageIcon(yourCountry.getFlagPath());
-    ImageIcon portrait = new ImageIcon(yourCountry.getPortraitPath());
-    JLabel flagLabel = new JLabel();
-    JLabel portraitLabel = new JLabel();
+
+    public static JLabel flagLabel = new JLabel();
+    public static JLabel portraitLabel = new JLabel();
+
+    {
+        flagLabel.setIcon(new ImageIcon(yourCountry.getFlagPath()));
+        portraitLabel.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
+    }
 
     // ALL BUTTONS
-    JButton buttonStats = new JButton("ІНФО");
-    JButton buttonDiplomacy = new JButton("ДИПЛОМАТІЯ");
-    JButton buttonMilitary = new JButton("ЕКОНОМІКА");
-    JButton buttonEconomy = new JButton("ВІЙСЬКО");
-    JButton buttonPriorities = new JButton("ПРІОРИТЕТИ");
-    JButton buttonSettings = new JButton("НАЛАШТУВАННЯ");
+    private JButton buttonResume = new JButton("⏵");
+    private JButton buttonPause = new JButton("⏸");
+    private JButton buttonInfo = new JButton("ІНФО");
+    private JButton buttonDiplomacy = new JButton("ДИПЛОМАТІЯ");
+    private JButton buttonEconomy = new JButton("ЕКОНОМІКА");
+    private JButton buttonMilitary = new JButton("ВІЙСЬКО");
+    private JButton buttonPriorities = new JButton("ПРІОРИТЕТИ");
+    private JButton buttonSettings = new JButton("НАЛАШТУВАННЯ");
 
     BufferedImage image;
     Area area;
     ArrayList<Shape> shapeList;
     static HashMap<Integer, Area> allRegions = new HashMap<>();
-    static ArrayList<Country> countries = new ArrayList<>();
 
     public Main() {
         try {
@@ -54,245 +68,6 @@ public class Main {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-    }
-
-    static class Country implements Comparable<Country> {
-        private String name = "Пустка";
-        private String code = "NON";
-        private Color color = Color.YELLOW.darker();
-        private Leader leader = new Leader("Ніхто", Ideology.ANARCHY, "Немає", 0);
-        private ArrayList<Integer> regions = new ArrayList<>();
-        private String flagPath = String.format(tempFlagPath, code);
-        private String portraitPath = String.format(tempPortraitPath, code + "_" + leader.ideology.valueOf());
-
-        Country() {
-        }
-
-        Country(String name, String code, Color color, Leader leader, ArrayList<Integer> regions) {
-            this.name = name;
-            this.code = code;
-            this.color = color;
-            this.leader = leader;
-            this.regions = regions;
-            this.flagPath = String.format(tempFlagPath, code);
-            this.portraitPath = String.format(tempPortraitPath, code + "_" + leader.ideology.valueOf());
-        }
-
-        public static class Leader {
-            String fullName;
-            Ideology ideology;
-            String partyName;
-            float popularity;
-
-            Leader(String fullName, Ideology ideology, String partyName, float popularity) {
-                this.fullName = fullName;
-                this.ideology = ideology;
-                this.partyName = partyName;
-                if (popularity > 100f) {
-                    popularity = 100f;
-                } else if (popularity < 0f) {
-                    popularity = 0f;
-                }
-                this.popularity = popularity;
-            }
-        }
-
-        public static enum Ideology {
-            ANARCHY,
-            TOTALISM,
-            BILSHOVISM,
-            MENSHEVISM,
-            SOCIAL_DEMOCRACY,
-            VOLISM,
-            ANARCHO_CAPITALISM,
-            TRADITIONALISM,
-            RETROGRADISM,
-            CORPORATISM,
-            DONTSOVISM,
-            BANDERISM,
-            RADICALISM;
-
-            public int valueOf() {
-                switch (this) {
-                    case ANARCHY:
-                        return 1;
-                    case TOTALISM:
-                        return 2;
-                    case BILSHOVISM:
-                        return 3;
-                    case MENSHEVISM:
-                        return 4;
-                    case SOCIAL_DEMOCRACY:
-                        return 5;
-                    case VOLISM:
-                        return 6;
-                    case ANARCHO_CAPITALISM:
-                        return 7;
-                    case TRADITIONALISM:
-                        return 8;
-                    case RETROGRADISM:
-                        return 9;
-                    case CORPORATISM:
-                        return 10;
-                    case DONTSOVISM:
-                        return 11;
-                    case BANDERISM:
-                        return 12;
-                    case RADICALISM:
-                        return 13;
-                    default:
-                        return 0;
-                }
-            }
-
-            @Override
-            public String toString() {
-                switch (this) {
-                    case ANARCHY:
-                        return "Анархія";
-                    case TOTALISM:
-                        return "Тоталізм";
-                    case BILSHOVISM:
-                        return "Більшовизм";
-                    case MENSHEVISM:
-                        return "Меньшовизм";
-                    case SOCIAL_DEMOCRACY:
-                        return "Соціал-Демократія";
-                    case VOLISM:
-                        return "Волізм";
-                    case ANARCHO_CAPITALISM:
-                        return "Анархо-Капіталізм";
-                    case TRADITIONALISM:
-                        return "Традиціоналізм";
-                    case RETROGRADISM:
-                        return "Ретроградизм";
-                    case CORPORATISM:
-                        return "Корпоратизм";
-                    case DONTSOVISM:
-                        return "Донцовізм";
-                    case BANDERISM:
-                        return "Бандеризм";
-                    case RADICALISM:
-                        return "Радикалізм";
-                    default:
-                        return "Помилка";
-                }
-            }
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public Color getColor() {
-            return color;
-        }
-
-        public Leader getLeader() {
-            return leader;
-        }
-
-        public ArrayList<Integer> getRegions() {
-            return regions;
-        }
-
-        public String getFlagPath() {
-            return flagPath;
-        }
-
-        public String getPortraitPath() {
-            return portraitPath;
-        }
-
-        @Override
-        public String toString() {
-            return getName();
-        }
-
-        public String toStringForStats() {
-            String string = "";
-            string += "Назва держави: " + getName() + "\n";
-            string += "Голова держави: " + getLeader().fullName + "\n";
-            string += "Правляча партія: " + getLeader().partyName + "\n";
-            string += "Ідеологія: " + getLeader().ideology + "\n";
-            return string;
-        }
-
-        @Override
-        public int compareTo(Main.Country o) {
-            return this.getName().compareTo(o.getName());
-        }
-
-    }
-
-    public static void setCountries() {
-        // Change
-
-        countries.add(new Country("Україна", "UKR", new Color(80, 218, 46),
-                new Country.Leader("Володимир Зеленський", Country.Ideology.VOLISM, "Слуга народу", 25),
-                new ArrayList<>(Arrays.asList(new Integer[] { 47, 49, 52, 34, 46, 68 }))));
-        countries.add(new Country("ЗСУ", "ZSU", new Color(236, 31, 120),
-                new Country.Leader("Валерій Залужний", Country.Ideology.TRADITIONALISM,
-                        "Кліка Залужного", 45),
-                new ArrayList<>(Arrays.asList(new Integer[] { 64, 77, 87, 50 }))));
-        countries.add(new Country("Альянс Помсти", "ALP", new Color(0, 0, 0),
-                new Country.Leader("Білий Вождь", Country.Ideology.BANDERISM,
-                        "Партія реваншистів", 70),
-                new ArrayList<>(Arrays.asList(new Integer[] { 58, 40, 45 }))));
-        countries.add(new Country("Оновлена Україна", "DEM", new Color(255, 229, 180),
-                new Country.Leader("Ігор Щедрін", Country.Ideology.VOLISM,
-                        "Демократична Сокира", 45),
-                new ArrayList<>(Arrays.asList(new Integer[] { 72 }))));
-        countries.add(new Country("Фастівська Народна Республіка", "FAS", new Color(119, 210, 180),
-                new Country.Leader("Олесь Янчук", Country.Ideology.SOCIAL_DEMOCRACY,
-                        "Директорія - Петлюрівці", 65),
-                new ArrayList<>(Arrays.asList(new Integer[] { 71, 80 }))));
-        countries.add(new Country("Обіхувський Мегакомбінат", "OBH", new Color(10, 117, 223),
-                new Country.Leader("Віктор Семенець", Country.Ideology.ANARCHO_CAPITALISM,
-                        "Рада директорів", 95),
-                new ArrayList<>(Arrays.asList(new Integer[] { 70, 89, 119 }))));
-        countries.add(new Country("ПЦУ", "PCU", new Color(146, 0, 10),
-                new Country.Leader("Митрополит Агапіт", Country.Ideology.RETROGRADISM,
-                        "Ортодоксальне крило", 50),
-                new ArrayList<>(Arrays.asList(new Integer[] { 130, 137, 134, 106, 98
-                }))));
-        countries.add(new Country("Українська Комуністична Республіка", "UCR", new Color(213, 15, 15),
-                new Country.Leader("Петро Симоненко", Country.Ideology.BILSHOVISM,
-                        "КПУ - Стара Гвардія", 85),
-                new ArrayList<>(Arrays.asList(new Integer[] { 13, 17 }))));
-        countries.add(new Country("Соціалістична Республіка Україна", "SRU", new Color(216,
-                49, 155),
-                new Country.Leader("Ілля Кива", Country.Ideology.MENSHEVISM,
-                        "СПУ - Кивовці", 25),
-                new ArrayList<>(Arrays.asList(new Integer[] { 29 }))));
-        countries.add(new Country("19 ОБ РХБЗ", "NOB", new Color(10,
-                111, 6),
-                new Country.Leader("Підполковник Мусій Шовкопляс", Country.Ideology.RADICALISM,
-                        "Рада", 100),
-                new ArrayList<>(Arrays.asList(new Integer[] { 31 }))));
-
-        countries.add(new Country("GSC", "GSC", new Color(51, 153, 153),
-                new Country.Leader("Сергій Григорович", Country.Ideology.ANARCHO_CAPITALISM,
-                        "Менеджери", 90),
-                new ArrayList<>(Arrays.asList(new Integer[] { 28 }))));
-        countries.add(new Country("Спілка Грибників", "MSH", new Color(152,
-                108, 95),
-                new Country.Leader("Дядько Свирид", Country.Ideology.RETROGRADISM,
-                        "Спілка грибників", 50),
-                new ArrayList<>(Arrays.asList(new Integer[] { 15 }))));
-        countries.add(new Country("Зона", "STA", new Color(255,
-                237, 123),
-                new Country.Leader("Бармен", Country.Ideology.CORPORATISM,
-                        "Вільні сталкери", 35),
-                new ArrayList<>(Arrays.asList(new Integer[] { 16 }))));
-        countries.add(new Country("СС \"Юнґе Адлер\"", "UNI", new Color(249,
-                239, 202),
-                new Country.Leader("Мікаель фон Поплавскі", Country.Ideology.RADICALISM,
-                        "НСУАП - Флюґель дер Аґрономен", 100),
-                new ArrayList<>(Arrays.asList(new Integer[] { 243, 246 }))));
-
-        Collections.sort(countries);
-
     }
 
     public final void initUI() throws Exception {
@@ -303,9 +78,15 @@ public class Main {
         ui = new JPanel(new BorderLayout(4, 4));
         ui.setBorder(new EmptyBorder(4, 4, 4, 4));
 
-        statsPanel.setLayout(boxLayout);
-        statsPanel.setOpaque(true);
-        statsPanel.setBackground(Color.BLACK);
+        gamePanel.setLayout(boxLayout);
+        gamePanel.setOpaque(true);
+        gamePanel.setBackground(Color.BLACK);
+
+        regionStats.setEditable(false);
+        regionStats.setLineWrap(true);
+        regionStats.setWrapStyleWord(true);
+        regionStats.setForeground(Color.CYAN);
+        regionStats.setBackground(Color.BLACK);
 
         countryStats.setEditable(false);
         countryStats.setLineWrap(true);
@@ -338,19 +119,11 @@ public class Main {
                 for (HashMap.Entry<Integer, Area> entrySet : allRegions.entrySet()) {
                     if (entrySet.getValue().contains(pointOnImage)) {
                         key = entrySet.getKey();
-                        for (Country country : countries) {
-                            if (country.getRegions().contains(key)) {
-                                countryStats.setText(country.toStringForStats());
-                                flag = new ImageIcon(country.getFlagPath());
-                                portrait = new ImageIcon(country.getPortraitPath());
-
-                                flagLabel.setIcon(flag);
-                                portraitLabel.setIcon(portrait);
-
-                                break;
-                            }
-                        }
-                        System.out.println(key);
+                        regionStats.setText(
+                                key + "\n"
+                                        + (!Region.getRegionByID(key).equals(Region.noRegion)
+                                                ? Region.getRegionByID(key).toString()
+                                                : Region.noRegion.toString()));
                         break;
                     }
                 }
@@ -359,58 +132,95 @@ public class Main {
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                // TODO Auto-generated method stub
 
             }
 
             @Override
             public void mouseEntered(MouseEvent e) {
-                // TODO Auto-generated method stub
 
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
-                // TODO Auto-generated method stub
 
             }
 
             @Override
             public void mouseDragged(MouseEvent e) {
-                // TODO Auto-generated method stub
 
             }
 
             @Override
             public void mouseMoved(MouseEvent e) {
-                // TODO Auto-generated method stub
 
             }
 
+        });
+
+        buttonInfo.addActionListener(e -> {
+            countryStats.setText(yourCountry.toStringForStats());
+        });
+        buttonEconomy.addActionListener(e -> {
+            countryStats.setText(yourCountry.getEconomy().toString());
         });
 
         JPanel picsPanel = new JPanel(new FlowLayout());
         picsPanel.setOpaque(true);
         picsPanel.setBackground(Color.BLACK);
 
-        flagLabel.setIcon(flag);
-        portraitLabel.setIcon(portrait);
-
+        // init panals
         picsPanel.add(flagLabel);
         picsPanel.add(portraitLabel);
 
-        statsPanel.add(countryStats);
-        statsPanel.add(picsPanel);
-        statsPanel.add(buttonStats);
-        statsPanel.add(buttonDiplomacy);
-        statsPanel.add(buttonMilitary);
-        statsPanel.add(buttonEconomy);
-        statsPanel.add(buttonPriorities);
-        statsPanel.add(buttonSettings);
+        JPanel timePanel = new JPanel(new FlowLayout());
+        timePanel.setOpaque(true);
+        timePanel.setBackground(Color.BLACK);
+        timePanel.add(calendarLabel);
+        timePanel.add(buttonResume);
+        timePanel.add(buttonPause);
+
+        Timer timer = new Timer(1000, e -> {
+            calendar.add(Calendar.DATE, 1);
+            calendarLabel.setText(dateFormat.format(calendar.getTime()));
+            // Move for countries
+        });
+
+        buttonResume.addActionListener(e -> {
+            timer.start();
+        });
+
+        buttonPause.addActionListener(e -> {
+            timer.stop();
+        });
+
+        BoxLayout infoBox = new BoxLayout(infoPanel, BoxLayout.Y_AXIS);
+        infoPanel.setLayout(infoBox);
+        infoPanel.add(regionStats);
+        infoPanel.add(countryStats);
+        infoPanel.setOpaque(true);
+        infoPanel.setBackground(Color.BLACK);
+
+        calendarLabel.setForeground(Color.CYAN);
+
+        gamePanel.add(timePanel);
+        gamePanel.add(infoPanel);
+        gamePanel.add(picsPanel);
+
+        addButtonsToGamePanel();
+
         ui.add(output);
-        ui.add(statsPanel);
+        ui.add(gamePanel);
 
         refresh();
+    }
+
+    private void addButtonsToGamePanel() {
+        gamePanel.add(buttonInfo);
+        gamePanel.add(buttonDiplomacy);
+        gamePanel.add(buttonEconomy);
+        gamePanel.add(buttonMilitary);
+        gamePanel.add(buttonPriorities);
+        gamePanel.add(buttonSettings);
     }
 
     public Area getOutline(Color target, BufferedImage bi, int tolerance) {
@@ -480,7 +290,8 @@ public class Main {
             pi.next();
         }
 
-        setCountries();
+        Region.setRegions();
+        Country.setCountries();
 
         return regions;
     }
@@ -522,15 +333,13 @@ public class Main {
         g.setColor(Color.ORANGE.darker());
         g.fill(area);
 
-        for (Country country : countries) {
+        for (Country country : Country.countries) {
             // TODO: Name of countries
-            for (Integer integer : country.getRegions()) {
-
+            for (Region region : country.getRegions()) {
                 g.setColor(country.getColor());
-                g.fill(allRegions.get(integer));
+                g.fill(allRegions.get(region.getID()));
             }
         }
-
         g.setColor(Color.CYAN.darker().darker());
         g.draw(area);
         try {
@@ -547,6 +356,16 @@ public class Main {
                 }
             }
         } catch (Exception doNothing) {
+        }
+
+        for (Country country : Country.countries) {
+            if (country.getName().equals(yourCountry.getName())) {
+                for (Region region : country.getRegions()) {
+                    g.setColor(country.getColor().brighter().brighter().brighter());
+                    g.draw(allRegions.get(region.getID()));
+                }
+                break;
+            }
         }
 
         g.dispose();
@@ -566,7 +385,11 @@ public class Main {
                 ex.printStackTrace();
             }
             Main o = new Main();
-
+            try {
+                description = Files.readString(Path.of("files/textFiles/text_description.txt"));
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
             // Menu before game
 
             JFrame mainMenu = new JFrame("Wild Fields");
@@ -591,6 +414,12 @@ public class Main {
             aboutCountryLabel.setForeground(Color.CYAN);
             aboutCountryLabel.setOpaque(true);
 
+            JTextArea descriptionCountryLabel = new JTextArea();
+            descriptionCountryLabel.setBackground(Color.BLACK);
+            descriptionCountryLabel.setForeground(Color.CYAN);
+            descriptionCountryLabel.setOpaque(true);
+            descriptionCountryLabel.setSize(new Dimension(500, 500));
+
             aboutCountryPanel.add(flagPic);
             aboutCountryPanel.add(portraitPic);
 
@@ -601,25 +430,43 @@ public class Main {
                 flagPic.setIcon(new ImageIcon(yourCountry.getFlagPath()));
                 portraitPic.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
                 aboutCountryLabel.setText(yourCountry.toStringForStats());
+                descriptionCountryLabel.setText(yourCountry.getDescription());
+                mainMenu.pack();
             });
 
             yourCountry = (Country) countrySelector.getSelectedItem();
             flagPic.setIcon(new ImageIcon(yourCountry.getFlagPath()));
             portraitPic.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
             aboutCountryLabel.setText(yourCountry.toStringForStats());
+            descriptionCountryLabel.setText(yourCountry.getDescription());
 
             JButton buttonPlay = new JButton("Почати гру");
             buttonPlay.addActionListener(e -> {
+                regionStats.setText(yourCountry.getRegions().get(0).toString());
+                countryStats.setText(yourCountry.toStringForStats());
+
+                flagLabel.setIcon(new ImageIcon((yourCountry.getFlagPath().toString())));
+                portraitLabel.setIcon(new ImageIcon((yourCountry.getPortraitPath().toString())));
+
                 jFrame.setVisible(true);
                 mainMenu.dispose();
             });
+
+            JButton buttonDescription = new JButton("Опис гри");
+            buttonDescription.addActionListener(e -> {
+                JOptionPane.showMessageDialog(mainMenu,
+                        description);
+            });
+
             JButton buttonExit = new JButton("Вийти");
             buttonExit.addActionListener(e -> System.exit(0));
 
             startMenuPanel.add(countrySelector);
             startMenuPanel.add(aboutCountryLabel);
+            startMenuPanel.add(descriptionCountryLabel);
             startMenuPanel.add(aboutCountryPanel);
             startMenuPanel.add(buttonPlay);
+            startMenuPanel.add(buttonDescription);
             startMenuPanel.add(buttonExit);
 
             mainMenu.add(startMenuPanel);
@@ -632,7 +479,7 @@ public class Main {
             jFrame.setLocationByPlatform(true);
             jFrame.setContentPane(o.getUI());
             jFrame.setLayout(new FlowLayout());
-            jFrame.setResizable(false);
+            // jFrame.setResizable(false);
             jFrame.getContentPane().setBackground(Color.BLACK);
 
             // TODO: Icon
@@ -648,9 +495,9 @@ public class Main {
     }
 
     private static Country[] countriesToArray() {
-        Country[] countriesArray = new Country[countries.size()];
+        Country[] countriesArray = new Country[Country.countries.size()];
         for (int i = 0; i < countriesArray.length; i++) {
-            countriesArray[i] = countries.get(i);
+            countriesArray[i] = Country.countries.get(i);
         }
         return countriesArray;
     }
