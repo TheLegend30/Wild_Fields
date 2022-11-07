@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Scanner;
 
 public class Country implements Comparable<Country> {
@@ -83,8 +84,8 @@ public class Country implements Comparable<Country> {
         private int population = 0;
         private int factories = 0;
 
-        private float populationTaxesModifier = 20.5f;
-        private float factoriesTaxesModifier = 13.5f;
+        private int populationTaxesModifier = 20;
+        private int factoriesTaxesModifier = 13;
 
         private float populationTaxes = 0f;
         private float factoriesTaxes = 0f;
@@ -92,44 +93,124 @@ public class Country implements Comparable<Country> {
         // TODO: Technology to improve output
         private float factoriesOutputModifier = 0f;
         private float factoriesOutput = 0f;
+        private float consumption = 0f;
+        private float tradeOutput = 0f;
 
         private float profit = 0f;
         private long reserve = 0L;
         private long debt = 0L;
+
+        private ArrayList<Queue> factoriesBuildQueue = new ArrayList<>();
+
+        private static class Queue {
+            private int daysLeft;
+            private Region region;
+
+            private Queue(int daysLeft, Region region) {
+                this.daysLeft = daysLeft;
+                this.region = region;
+            }
+
+            public int getDaysLeft() {
+                return daysLeft;
+            }
+
+            public void setDaysLeft(int daysLeft) {
+                this.daysLeft = daysLeft;
+            }
+
+        }
 
         private Economy() {
 
         }
 
         private Economy(Country country) {
+            update(country);
+        }
+
+        public void update(Country country) {
             this.population = 0;
             this.factories = 0;
             for (Region region : country.regions) {
                 this.population += region.getPopulation();
                 this.factories += region.getFactories();
             }
-            populationTaxes = population * ((populationTaxesModifier / 100f) * 20f);
-            factoriesTaxes = factories * ((factoriesTaxesModifier / 100f) * 3500f);
 
-            factoriesOutputModifier = factories * 5000f / (100f / factoriesTaxesModifier);
-            factoriesOutput = factories * factoriesOutputModifier;
+            this.populationTaxes = this.population * ((this.populationTaxesModifier * 0.01f) * 20f);
+            this.factoriesTaxes = this.factories * ((this.factoriesTaxesModifier * 0.01f) * 35000f);
 
-            profit += populationTaxes + factoriesTaxes + factoriesOutput;
+            this.factoriesOutputModifier = this.factories * 50f * (1f - (this.factoriesTaxesModifier * 0.01f));
+            this.factoriesOutput = this.factories * this.factoriesOutputModifier;
+            this.consumption = this.population * 0.15f + this.getQueue().length() * 300f;
+            this.tradeOutput = (this.factoriesOutput - this.consumption) * 55f;
+
+            this.profit = this.populationTaxes + this.factoriesTaxes + this.tradeOutput - (this.debt * 0.09f);
+        }
+
+        private void addProfit() {
+            reserve += profit;
+            if (reserve < 0) {
+                debt -= reserve;
+                reserve = 0;
+            }
+        }
+
+        public int getPopulationTaxesModifier() {
+            return populationTaxesModifier;
+        }
+
+        public int getFactoriesTaxesModifier() {
+            return factoriesTaxesModifier;
+        }
+
+        public void setPopulationTaxesModifier(int populationTaxesModifier) {
+            this.populationTaxesModifier = populationTaxesModifier;
+        }
+
+        public void setFactoriesTaxesModifier(int factoriesTaxesModifier) {
+            this.factoriesTaxesModifier = factoriesTaxesModifier;
+        }
+
+        public void buildFactory(Region region) {
+            factoriesBuildQueue.add(new Queue(80, region));
+        }
+
+        public void checkIfBuilt() {
+            Iterator<Queue> qIterator = factoriesBuildQueue.iterator();
+            while (qIterator.hasNext()) {
+                Queue queue = qIterator.next();
+                queue.setDaysLeft(queue.getDaysLeft() - 1);
+                if (queue.getDaysLeft() == 0) {
+                    queue.region.setFactories(queue.region.getFactories() + 1);
+                    qIterator.remove();
+                }
+            }
         }
 
         @Override
         public String toString() {
             String string = "";
             string += "Населення: " + population + "\n";
-            string += "Кількість заводів: " + factories + "\n";
-            string += "Подушне: " + String.format("%.2f", populationTaxesModifier) + "%" + "\n";
-            string += "Пофабричне: " + String.format("%.2f", factoriesTaxesModifier) + "%" + "\n";
+            string += "Кількість фабрик: " + factories + "\n";
+            string += "Подушне: " + populationTaxesModifier + "%" + "\n";
+            string += "Пофабричне: " + factoriesTaxesModifier + "%" + "\n";
             string += "Розмір подушного: " + String.format("%.2f", populationTaxes) + "₴" + "\n";
             string += "Розмір пофабричного: " + String.format("%.2f", factoriesTaxes) + "₴" + "\n";
-            string += "Доход з фабричної продукції: " + String.format("%.2f", factoriesOutput) + "₴" + "\n";
+            string += "Вироблено фабричної продукції: " + String.format("%.2f", factoriesOutput) + " одиниць" + "\n";
+            string += "Спожито населенням: " + String.format("%.2f", consumption) + " одиниць" + "\n";
+            string += "Залишки продано (придбано): " + String.format("%.2f", tradeOutput) + "₴" + "\n";
             string += "Загальний прибуток (місячний): " + String.format("%.2f", profit) + "₴" + "\n";
             string += "Резерв: " + reserve + "₴" + "\n";
             string += "Борг: " + debt + "₴" + "\n";
+            return string;
+        }
+
+        public String getQueue() {
+            String string = "";
+            for (Queue queue : factoriesBuildQueue) {
+                string += "Фабрика будується: " + queue.daysLeft + " днів в регіоні " + queue.region.getName() + "\n";
+            }
             return string;
         }
     }
@@ -267,7 +348,7 @@ public class Country implements Comparable<Country> {
     public static void setCountries() {
 
         countries.add(new Country("Україна", "UKR", new Color(80, 218, 46),
-                new Leader("Володимир Зеленський", Ideology.VOLISM, "Слуга народу", 25),
+                new Leader("Володимир Зеленський", Ideology.VOLISM, "Слуга народу", 15),
                 new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(47), Region.getRegionByID(49),
                         Region.getRegionByID(52), Region.getRegionByID(34), Region.getRegionByID(46),
                         Region.getRegionByID(68) }))));
@@ -277,26 +358,31 @@ public class Country implements Comparable<Country> {
                         "Кліка Залужного", 45),
                 new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(64), Region.getRegionByID(77),
                         Region.getRegionByID(87), Region.getRegionByID(50) }))));
+
         countries.add(new Country("Альянс Помсти", "ALP", new Color(0, 0, 0),
                 new Leader("Білий Вождь", Ideology.BANDERISM,
                         "Партія реваншистів", 70),
                 new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(58), Region.getRegionByID(40),
                         Region.getRegionByID(45) }))));
+
         countries.add(new Country("Оновлена Україна", "DEM", new Color(255, 229,
                 180),
                 new Leader("Ігор Щедрін", Ideology.VOLISM,
                         "Демократична Сокира", 45),
                 new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(72) }))));
+
         countries.add(new Country("Фастівська Народна Республіка", "FAS", new Color(119, 210, 180),
                 new Leader("Олесь Янчук", Ideology.SOCIAL_DEMOCRACY,
                         "Директорія - Петлюрівці", 65),
                 new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(71), Region.getRegionByID(80) }))));
+
         countries.add(new Country("Обухівський Мегакомбінат", "OBH", new Color(10,
                 117, 223),
                 new Leader("Віктор Семенець", Ideology.ANARCHO_CAPITALISM,
                         "Рада директорів", 95),
                 new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(70), Region.getRegionByID(89),
                         Region.getRegionByID(119) }))));
+
         countries.add(new Country("ПЦУ", "PCU", new Color(146, 0, 10),
                 new Leader("Митрополит Агапіт", Ideology.RETROGRADISM,
                         "Ортодоксальне крило", 50),
@@ -304,17 +390,19 @@ public class Country implements Comparable<Country> {
                         Arrays.asList(new Region[] { Region.getRegionByID(130), Region.getRegionByID(137),
                                 Region.getRegionByID(134), Region.getRegionByID(106), Region.getRegionByID(98)
                         }))));
-        // countries.add(new Country("Українська Комуністична Республіка", "UCR", new
-        // Color(213, 15, 15),
-        // new Leader("Петро Симоненко", Ideology.BILSHOVISM,
-        // "КПУ - Стара Гвардія", 85),
-        // new ArrayList<>(Arrays.asList(new Integer[] { 13, 17 }))));
-        // countries.add(new Country("Соціалістична Республіка Україна", "SRU", new
-        // Color(216,
-        // 49, 155),
-        // new Leader("Ілля Кива", Ideology.MENSHEVISM,
-        // "СПУ - Кивовці", 25),
-        // new ArrayList<>(Arrays.asList(new Integer[] { 29 }))));
+
+        countries.add(new Country("Українська Радянська Соціалістична Республіка", "UCR", new Color(213, 15, 15),
+                new Leader("Петро Симоненко", Ideology.BILSHOVISM,
+                        "КПУ - Стара Гвардія", 85),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(13),
+                        Region.getRegionByID(17) }))));
+
+        countries.add(new Country("Соціалістична Республіка Україна", "SRU", new Color(216,
+                49, 155),
+                new Leader("Ілля Кива", Ideology.MENSHEVISM,
+                        "СПУ - Кивовці", 25),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(29) }))));
+
         countries.add(new Country("19 ОБ РХБЗ", "NOB", new Color(10,
                 111, 6),
                 new Leader("Підполковник Мусій Шовкопляс",
@@ -326,28 +414,76 @@ public class Country implements Comparable<Country> {
                 new Leader("Сергій Григорович", Ideology.ANARCHO_CAPITALISM,
                         "Менеджери", 90),
                 new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(28) }))));
+
         countries.add(new Country("Спілка Грибників", "MSH", new Color(152,
                 108, 95),
                 new Leader("Дядько Свирид", Ideology.RETROGRADISM,
                         "Спілка грибників", 50),
                 new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(16) }))));
+
         countries.add(new Country("Зона", "STA", new Color(255,
                 237, 123),
                 new Leader("Бармен", Ideology.CORPORATISM,
                         "Вільні сталкери", 35),
                 new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(15) }))));
 
-        // countries.add(new Country("СС \"Юнґе Адлер\"", "UNI", new Color(249,
-        // 239, 202),
-        // new Leader("Мікаель фон Поплавскі", Ideology.RADICALISM,
-        // "НСУАП - Флюґель дер Аґрономен", 100),
-        // new ArrayList<>(Arrays.asList(new Integer[] { 243, 246 }))));
+        countries.add(new Country("СС \"Юнґе Адлер\"", "UNI", new Color(249,
+                239, 202),
+                new Leader("Мікаель фон Поплавскі", Ideology.RADICALISM,
+                        "НСУАП - Флюґель дер Аґрономен", 100),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(243),
+                        Region.getRegionByID(246) }))));
 
-        // countries.add(new Country("РУНВіра", "RUN", new Color(42,
-        // 98, 193),
-        // new Leader("Олег Безверхий", Ideology.RETROGRADISM,
-        // "Силенкоїсти", 100),
-        // new ArrayList<>(Arrays.asList(new Integer[] { 0, 1 }))));
+        countries.add(new Country("РУНВіровці", "RUN", new Color(42,
+                98, 193),
+                new Leader("Олег Безверхий", Ideology.RETROGRADISM,
+                        "Силенкоїсти", 100),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(173), Region.getRegionByID(209) }))));
+
+        countries.add(new Country("Чигиринський полк", "CHH", new Color(216,
+                29, 79),
+                new Leader("Полковник Тиміш Хмельницький", Ideology.DONTSOVISM,
+                        "Лоялісти Хмельницького", 48),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(160), Region.getRegionByID(164) }))));
+
+        countries.add(new Country("Канівський полк", "KAN", new Color(24, 85, 144),
+                new Leader("Полковник Добровіст Захаренко", Ideology.ANARCHY,
+                        "Канівська голота", 60),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(146) }))));
+
+        countries.add(new Country("Гетьманат", "HET", new Color(243, 204, 15),
+                new Leader("Гетьман Гнат Многогрішний", Ideology.TRADITIONALISM,
+                        "Черкаська старшина", 55),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(131) }))));
+
+        countries.add(new Country("Кропивнянський полк", "KRO", new Color(220, 220,
+                220),
+                new Leader("Полковник-Кобзар Тарас Компаніченко", Ideology.RETROGRADISM,
+                        "Бандуристи", 65),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(129),
+                        Region.getRegionByID(108),
+                        Region.getRegionByID(116) }))));
+
+        countries.add(new Country("Лубенський полк", "LUB", new Color(240, 226, 193),
+                new Leader("Полковник Євген Петренко", Ideology.CORPORATISM,
+                        "Звичаївці", 65),
+                new ArrayList<>(Arrays.asList(new Region[] {
+                        Region.getRegionByID(100),
+                        Region.getRegionByID(66) }))));
+
+        countries.add(new Country("Миргородський полк", "MYR", new Color(180, 180,
+                180),
+                new Leader("Полковник Анатолій Шевченко", Ideology.BANDERISM,
+                        "Реєстровці", 65),
+                new ArrayList<>(Arrays.asList(new Region[] {
+                        Region.getRegionByID(99),
+                        Region.getRegionByID(113) }))));
+
+        countries.add(new Country("Гадяцький полк", "HAD", new Color(40, 40,
+                40),
+                new Leader("Полковник Валентин Соколовський", Ideology.RADICALISM,
+                        "Обʼєднанці", 30),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(67) }))));
 
         Collections.sort(countries);
     }
@@ -371,5 +507,17 @@ public class Country implements Comparable<Country> {
             e.printStackTrace();
         }
         return text;
+    }
+
+    public void moveOneDay() {
+        this.getEconomy().checkIfBuilt();
+    }
+
+    public void moveOneMonth() {
+        for (Region region : this.regions) {
+            region.setPopulation((int) (region.getPopulation() * 1.0005));
+        }
+        this.economy.update(this);
+        this.economy.addProfit();
     }
 }

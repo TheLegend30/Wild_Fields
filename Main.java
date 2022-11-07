@@ -20,11 +20,14 @@ import javax.imageio.ImageIO;
 
 public class Main {
     public static SimpleDateFormat dateFormat = new SimpleDateFormat("d MMMM yyyy");
-    public static Calendar calendar = new GregorianCalendar(2028, Calendar.AUGUST, 24);
+    public static Calendar calendar = new GregorianCalendar(2028, Calendar.NOVEMBER, 8);
+    public static JLabel calendarLabel = new JLabel(dateFormat.format(calendar.getTime()));
 
     static String description = "";
     static Country yourCountry = new Country();
-    static JFrame jFrame;
+    static Region selectedRegion = Region.noRegion;
+    static JFrame mainMenuFrame;
+    static JFrame gameFrame;
     JPanel ui = null;
     JLabel output = new JLabel();
 
@@ -32,35 +35,66 @@ public class Main {
     BoxLayout boxLayout = new BoxLayout(gamePanel, BoxLayout.Y_AXIS);
 
     JPanel infoPanel = new JPanel();
+    JScrollPane infoPane = new JScrollPane(infoPanel);
 
     // INFO STATS
-    public static JLabel calendarLabel = new JLabel(dateFormat.format(calendar.getTime()));
-    public static JTextArea regionStats = new JTextArea(Region.noRegion.toString());
+    public static JTextArea regionStats = new JTextArea(selectedRegion.toString());
     public static JTextArea countryStats = new JTextArea(yourCountry.toStringForStats());
+    public static JSlider populationtTaxesModifierSlider = new JSlider(0, 100);
+    public static JSlider factoriesTaxesModifierSlider = new JSlider(0, 100);
+    // ECONOMY STATS
+    public static JTextArea economyStats = new JTextArea(yourCountry.getEconomy().toString());
+    public static JTextArea queueStats = new JTextArea(yourCountry.getEconomy().getQueue());
+    // SETTINGS BUTTON
+    public static JButton exitToMenuButton = new JButton("Вийти");
+
+    public static JButton playSongButton = new JButton("⏵");
+    public static JButton pauseSongButton = new JButton("⏸");
+    public static JButton nextSongButton = new JButton("Наступна пісня");
+    public static JButton previousSongButton = new JButton("Попередня пісня");
     // No country
+
+    // Some variables
+    public static JButton buildFactoryButton;
+    static Boolean isBuilding = false;
 
     public static JLabel flagLabel = new JLabel();
     public static JLabel portraitLabel = new JLabel();
 
-    {
-        flagLabel.setIcon(new ImageIcon(yourCountry.getFlagPath()));
-        portraitLabel.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
-    }
-
     // ALL BUTTONS
-    private JButton buttonResume = new JButton("⏵");
-    private JButton buttonPause = new JButton("⏸");
-    private JButton buttonInfo = new JButton("ІНФО");
-    private JButton buttonDiplomacy = new JButton("ДИПЛОМАТІЯ");
-    private JButton buttonEconomy = new JButton("ЕКОНОМІКА");
-    private JButton buttonMilitary = new JButton("ВІЙСЬКО");
-    private JButton buttonPriorities = new JButton("ПРІОРИТЕТИ");
-    private JButton buttonSettings = new JButton("НАЛАШТУВАННЯ");
+    private JButton resumeButton = new JButton("⏵");
+    private JButton fasterButton = new JButton("⏵⏵");
+    private JButton pauseButton = new JButton("⏸");
+    private JPanel buttonPanel = new JPanel(new GridLayout(3, 2));
+    private JButton infoButton = new JButton("ІНФО");
+    private JButton diplomacyButton = new JButton("ДИПЛОМАТІЯ");
+    private JButton economyButton = new JButton("ЕКОНОМІКА");
+    private JButton militaryButton = new JButton("ВІЙСЬКО");
+    private JButton prioritiesButton = new JButton("ПРІОРИТЕТИ");
+    private JButton settingsButton = new JButton("НАЛАШТУВАННЯ");
 
+    public static MidiPlayer player;
     BufferedImage image;
     Area area;
     ArrayList<Shape> shapeList;
     static HashMap<Integer, Area> allRegions = new HashMap<>();
+
+    Thread checkIfPlayerRunningThread = new Thread(new Runnable() {
+        @Override
+        public void run() {
+            while (true) {
+                player.checkIfRunning();
+            }
+        }
+    });
+
+    {
+        flagLabel.setIcon(new ImageIcon(yourCountry.getFlagPath()));
+        portraitLabel.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
+        player = new MidiPlayer();
+        // player.start();
+        // checkIfPlayerRunningThread.start();
+    }
 
     public Main() {
         try {
@@ -78,6 +112,8 @@ public class Main {
         ui = new JPanel(new BorderLayout(4, 4));
         ui.setBorder(new EmptyBorder(4, 4, 4, 4));
 
+        infoPane.setPreferredSize(new Dimension(300, 350));
+
         gamePanel.setLayout(boxLayout);
         gamePanel.setOpaque(true);
         gamePanel.setBackground(Color.BLACK);
@@ -93,6 +129,18 @@ public class Main {
         countryStats.setWrapStyleWord(true);
         countryStats.setForeground(Color.CYAN);
         countryStats.setBackground(Color.BLACK);
+
+        economyStats.setEditable(false);
+        economyStats.setLineWrap(true);
+        economyStats.setWrapStyleWord(true);
+        economyStats.setForeground(Color.CYAN);
+        economyStats.setBackground(Color.BLACK);
+
+        queueStats.setEditable(false);
+        queueStats.setLineWrap(true);
+        queueStats.setWrapStyleWord(true);
+        queueStats.setForeground(Color.CYAN);
+        queueStats.setBackground(Color.BLACK);
 
         File file = new File("files/map.png");
         image = ImageIO.read(file);
@@ -116,15 +164,31 @@ public class Main {
                 Point pointOnImage = new Point(x, y);
 
                 int key = 0;
-                for (HashMap.Entry<Integer, Area> entrySet : allRegions.entrySet()) {
-                    if (entrySet.getValue().contains(pointOnImage)) {
-                        key = entrySet.getKey();
-                        regionStats.setText(
-                                key + "\n"
-                                        + (!Region.getRegionByID(key).equals(Region.noRegion)
-                                                ? Region.getRegionByID(key).toString()
-                                                : Region.noRegion.toString()));
-                        break;
+                if (isBuilding) {
+                    for (HashMap.Entry<Integer, Area> entrySet : allRegions.entrySet()) {
+                        if (entrySet.getValue().contains(pointOnImage)) {
+                            key = entrySet.getKey();
+                            if (yourCountry.getRegions().contains(Region.getRegionByID(key))) {
+                                selectedRegion = Region.getRegionByID(key);
+                                yourCountry.getEconomy().buildFactory(selectedRegion);
+                                yourCountry.getEconomy().update(yourCountry);
+                                refresh();
+                            }
+                        }
+                    }
+                } else {
+                    for (HashMap.Entry<Integer, Area> entrySet : allRegions.entrySet()) {
+                        if (entrySet.getValue().contains(pointOnImage)) {
+                            key = entrySet.getKey();
+                            selectedRegion = Region.getRegionByID(key);
+                            regionStats.setText(
+                                    key + "\n"
+                                            + (!selectedRegion.equals(Region.noRegion)
+                                                    ? selectedRegion.toString()
+                                                    : Region.noRegion.toString()));
+
+                            break;
+                        }
                     }
                 }
 
@@ -157,13 +221,6 @@ public class Main {
 
         });
 
-        buttonInfo.addActionListener(e -> {
-            countryStats.setText(yourCountry.toStringForStats());
-        });
-        buttonEconomy.addActionListener(e -> {
-            countryStats.setText(yourCountry.getEconomy().toString());
-        });
-
         JPanel picsPanel = new JPanel(new FlowLayout());
         picsPanel.setOpaque(true);
         picsPanel.setBackground(Color.BLACK);
@@ -172,55 +229,194 @@ public class Main {
         picsPanel.add(flagLabel);
         picsPanel.add(portraitLabel);
 
-        JPanel timePanel = new JPanel(new FlowLayout());
+        JPanel timePanel = new JPanel(
+                new FlowLayout());
         timePanel.setOpaque(true);
         timePanel.setBackground(Color.BLACK);
         timePanel.add(calendarLabel);
-        timePanel.add(buttonResume);
-        timePanel.add(buttonPause);
+        timePanel.add(resumeButton);
+        timePanel.add(fasterButton);
+        timePanel.add(pauseButton);
 
         Timer timer = new Timer(1000, e -> {
             calendar.add(Calendar.DATE, 1);
             calendarLabel.setText(dateFormat.format(calendar.getTime()));
-            // Move for countries
+            yourCountry.moveOneDay();
+            if (calendar.get(Calendar.DAY_OF_MONTH) == 1) {
+                yourCountry.moveOneMonth();
+            }
+            updateGamePanel();
+            // TODO: Move for other countries
         });
 
-        buttonResume.addActionListener(e -> {
+        resumeButton.addActionListener(e -> {
+            resumeButton.setForeground(Color.CYAN);
+            fasterButton.setForeground(Color.BLACK);
+            pauseButton.setForeground(Color.BLACK);
+            timer.setDelay(1000);
             timer.start();
         });
 
-        buttonPause.addActionListener(e -> {
+        fasterButton.addActionListener(e -> {
+            resumeButton.setForeground(Color.BLACK);
+            fasterButton.setForeground(Color.CYAN);
+            pauseButton.setForeground(Color.BLACK);
+            timer.setDelay(100);
+            timer.start();
+        });
+
+        pauseButton.addActionListener(e -> {
+            resumeButton.setForeground(Color.BLACK);
+            fasterButton.setForeground(Color.BLACK);
+            pauseButton.setForeground(Color.CYAN);
             timer.stop();
         });
 
-        BoxLayout infoBox = new BoxLayout(infoPanel, BoxLayout.Y_AXIS);
+        pauseButton.doClick();
+
+        exitToMenuButton.addActionListener(e -> {
+            gameFrame.dispose();
+            mainMenuFrame.setVisible(true);
+        });
+
+        playSongButton.addActionListener(e -> {
+            player.start();
+        });
+
+        pauseSongButton.addActionListener(e -> {
+            player.stop();
+        });
+
+        nextSongButton.addActionListener(e -> {
+            player.nextSong();
+        });
+
+        previousSongButton.addActionListener(e -> {
+            player.previousSong();
+        });
+
+        BoxLayout infoBox = new BoxLayout(infoPanel,
+                BoxLayout.Y_AXIS);
         infoPanel.setLayout(infoBox);
         infoPanel.add(regionStats);
         infoPanel.add(countryStats);
         infoPanel.setOpaque(true);
         infoPanel.setBackground(Color.BLACK);
 
+        calendarLabel.setFont(new Font(null, Font.PLAIN, 10));
         calendarLabel.setForeground(Color.CYAN);
 
-        gamePanel.add(timePanel);
-        gamePanel.add(infoPanel);
-        gamePanel.add(picsPanel);
+        populationtTaxesModifierSlider.setOpaque(true);
+        populationtTaxesModifierSlider.setForeground(Color.BLACK);
+        populationtTaxesModifierSlider.setBackground(Color.CYAN);
+        populationtTaxesModifierSlider.setPaintTrack(true);
+        populationtTaxesModifierSlider.setMinorTickSpacing(5);
+        populationtTaxesModifierSlider.setMajorTickSpacing(20);
+        populationtTaxesModifierSlider.setPaintLabels(true);
+        populationtTaxesModifierSlider.addChangeListener(e -> {
+            yourCountry.getEconomy().setPopulationTaxesModifier(populationtTaxesModifierSlider.getValue());
+            yourCountry.getEconomy().update(yourCountry);
+            economyStats.setText(yourCountry.getEconomy().toString());
+        });
 
-        addButtonsToGamePanel();
+        factoriesTaxesModifierSlider.setOpaque(true);
+        factoriesTaxesModifierSlider.setForeground(Color.BLACK);
+        factoriesTaxesModifierSlider.setBackground(Color.CYAN);
+        factoriesTaxesModifierSlider.setPaintTrack(true);
+        factoriesTaxesModifierSlider.setMinorTickSpacing(5);
+        factoriesTaxesModifierSlider.setMajorTickSpacing(20);
+        factoriesTaxesModifierSlider.setPaintLabels(true);
+        factoriesTaxesModifierSlider.addChangeListener(e -> {
+            yourCountry.getEconomy().setFactoriesTaxesModifier(factoriesTaxesModifierSlider.getValue());
+            yourCountry.getEconomy().update(yourCountry);
+            economyStats.setText(yourCountry.getEconomy().toString());
+        });
+
+        buildFactoryButton = new JButton("Побудувати фабрику");
+        JButton queueButton = new JButton("Список будівництва");
+        JButton queueBackButton = new JButton("Назад");
+
+        buildFactoryButton.addActionListener(e -> {
+            buildFactoryMethod();
+        });
+
+        queueButton.addActionListener(e -> {
+            infoPanel.removeAll();
+            infoPanel.add(queueStats);
+            infoPanel.add(queueBackButton);
+            queueStats.setText(yourCountry.getEconomy().getQueue());
+            gamePanel.updateUI();
+        });
+
+        queueBackButton.addActionListener(e -> {
+            economyButton.doClick();
+        });
+
+        infoButton.addActionListener(e -> {
+            infoPanel.removeAll();
+            infoPanel.add(regionStats);
+            infoPanel.add(countryStats);
+            regionStats.setText(selectedRegion.toString());
+            countryStats.setText(yourCountry.toStringForStats());
+            gamePanel.updateUI();
+        });
+        economyButton.addActionListener(e -> {
+            infoPanel.removeAll();
+            infoPanel.add(economyStats);
+            infoPanel.add(populationtTaxesModifierSlider);
+            infoPanel.add(factoriesTaxesModifierSlider);
+            infoPanel.add(buildFactoryButton);
+            infoPanel.add(queueButton);
+            economyStats.setText(yourCountry.getEconomy().toString());
+            populationtTaxesModifierSlider.setValue(yourCountry.getEconomy().getPopulationTaxesModifier());
+            factoriesTaxesModifierSlider.setValue(yourCountry.getEconomy().getFactoriesTaxesModifier());
+            gamePanel.updateUI();
+        });
+        settingsButton.addActionListener(e -> {
+            infoPanel.removeAll();
+            JPanel songPanel = new JPanel(new GridLayout(2, 3));
+            songPanel.setBackground(Color.BLACK);
+            infoPanel.add(exitToMenuButton);
+
+            songPanel.add(playSongButton);
+            songPanel.add(pauseSongButton);
+            songPanel.add(nextSongButton);
+            songPanel.add(previousSongButton);
+
+            infoPanel.add(songPanel);
+            gamePanel.updateUI();
+        });
+
+        buttonPanel.setOpaque(true);
+        buttonPanel.setBackground(Color.BLACK);
+
+        buttonPanel.add(infoButton);
+        buttonPanel.add(diplomacyButton);
+        buttonPanel.add(economyButton);
+        buttonPanel.add(militaryButton);
+        buttonPanel.add(prioritiesButton);
+        buttonPanel.add(settingsButton);
+
+        gamePanel.add(timePanel);
+        gamePanel.add(infoPane);
+        gamePanel.add(picsPanel);
+        gamePanel.add(buttonPanel);
 
         ui.add(output);
         ui.add(gamePanel);
 
         refresh();
+
     }
 
-    private void addButtonsToGamePanel() {
-        gamePanel.add(buttonInfo);
-        gamePanel.add(buttonDiplomacy);
-        gamePanel.add(buttonEconomy);
-        gamePanel.add(buttonMilitary);
-        gamePanel.add(buttonPriorities);
-        gamePanel.add(buttonSettings);
+    private void buildFactoryMethod() {
+        isBuilding = !isBuilding;
+        if (isBuilding) {
+            buildFactoryButton.setText("Відмінити");
+        } else {
+            buildFactoryButton.setText("Побудувати фабрику");
+        }
+        refresh();
     }
 
     public Area getOutline(Color target, BufferedImage bi, int tolerance) {
@@ -323,6 +519,15 @@ public class Main {
 
     private void refresh() {
         output.setIcon(new ImageIcon(getImage()));
+        updateGamePanel();
+    }
+
+    private void updateGamePanel() {
+        regionStats.setText(selectedRegion.toString());
+        countryStats.setText(yourCountry.toStringForStats());
+        economyStats.setText(yourCountry.getEconomy().toString());
+        queueStats.setText(yourCountry.getEconomy().getQueue());
+        gamePanel.updateUI();
     }
 
     private BufferedImage getImage() {
@@ -333,13 +538,25 @@ public class Main {
         g.setColor(Color.ORANGE.darker());
         g.fill(area);
 
-        for (Country country : Country.countries) {
-            // TODO: Name of countries
-            for (Region region : country.getRegions()) {
-                g.setColor(country.getColor());
-                g.fill(allRegions.get(region.getID()));
+        if (isBuilding) {
+            for (Country country : Country.countries) {
+                if (country.getName().equals(yourCountry.getName())) {
+                    for (Region region : country.getRegions()) {
+                        g.setColor(Color.GREEN);
+                        g.fill(allRegions.get(region.getID()));
+                    }
+                }
+            }
+        } else {
+            for (Country country : Country.countries) {
+                // TODO: Name of countries
+                for (Region region : country.getRegions()) {
+                    g.setColor(country.getColor());
+                    g.fill(allRegions.get(region.getID()));
+                }
             }
         }
+
         g.setColor(Color.CYAN.darker().darker());
         g.draw(area);
         try {
@@ -378,120 +595,119 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        Runnable r = () -> {
-            try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-            Main o = new Main();
-            try {
-                description = Files.readString(Path.of("files/textFiles/text_description.txt"));
-            } catch (IOException e1) {
-                e1.printStackTrace();
-            }
-            // Menu before game
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        Main o = new Main();
 
-            JFrame mainMenu = new JFrame("Wild Fields");
-            mainMenu.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            mainMenu.setLocationByPlatform(true);
-            mainMenu.setLayout(new FlowLayout());
-            mainMenu.getContentPane().setBackground(Color.BLACK);
-            mainMenu.setResizable(false);
+        try {
+            description = Files.readString(Path.of("files/textFiles/text_description.txt"));
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        }
 
-            JPanel startMenuPanel = new JPanel();
-            BoxLayout startMenuPanelBoxLayout = new BoxLayout(startMenuPanel, BoxLayout.Y_AXIS);
-            startMenuPanel.setLayout(startMenuPanelBoxLayout);
-            startMenuPanel.setBackground(Color.BLACK);
+        mainMenuFrame = new JFrame("Wild Fields");
+        mainMenuFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        mainMenuFrame.setLocationByPlatform(true);
+        mainMenuFrame.setLayout(new FlowLayout());
+        mainMenuFrame.getContentPane().setBackground(Color.BLACK);
+        mainMenuFrame.setResizable(false);
 
-            JPanel aboutCountryPanel = new JPanel(new FlowLayout());
-            aboutCountryPanel.setBackground(Color.BLACK);
+        JPanel startMenuPanel = new JPanel();
+        BoxLayout startMenuPanelBoxLayout = new BoxLayout(startMenuPanel, BoxLayout.Y_AXIS);
+        startMenuPanel.setLayout(startMenuPanelBoxLayout);
+        startMenuPanel.setBackground(Color.BLACK);
 
-            JLabel flagPic = new JLabel();
-            JLabel portraitPic = new JLabel();
-            JTextArea aboutCountryLabel = new JTextArea();
-            aboutCountryLabel.setBackground(Color.BLACK);
-            aboutCountryLabel.setForeground(Color.CYAN);
-            aboutCountryLabel.setOpaque(true);
+        JPanel aboutCountryPanel = new JPanel(new FlowLayout());
+        aboutCountryPanel.setBackground(Color.BLACK);
 
-            JTextArea descriptionCountryLabel = new JTextArea();
-            descriptionCountryLabel.setBackground(Color.BLACK);
-            descriptionCountryLabel.setForeground(Color.CYAN);
-            descriptionCountryLabel.setOpaque(true);
-            descriptionCountryLabel.setSize(new Dimension(500, 500));
+        JLabel flagPic = new JLabel();
+        JLabel portraitPic = new JLabel();
+        JTextArea aboutCountryLabel = new JTextArea();
+        aboutCountryLabel.setBackground(Color.BLACK);
+        aboutCountryLabel.setForeground(Color.CYAN);
+        aboutCountryLabel.setOpaque(true);
 
-            aboutCountryPanel.add(flagPic);
-            aboutCountryPanel.add(portraitPic);
+        JTextArea descriptionCountryLabel = new JTextArea();
+        descriptionCountryLabel.setBackground(Color.BLACK);
+        descriptionCountryLabel.setForeground(Color.CYAN);
+        descriptionCountryLabel.setOpaque(true);
+        descriptionCountryLabel.setSize(new Dimension(500, 500));
 
-            Country[] countriesArray = countriesToArray();
-            JComboBox<Country> countrySelector = new JComboBox<>(countriesArray);
-            countrySelector.addActionListener(e -> {
-                yourCountry = (Country) countrySelector.getSelectedItem();
-                flagPic.setIcon(new ImageIcon(yourCountry.getFlagPath()));
-                portraitPic.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
-                aboutCountryLabel.setText(yourCountry.toStringForStats());
-                descriptionCountryLabel.setText(yourCountry.getDescription());
-                mainMenu.pack();
-            });
+        aboutCountryPanel.add(flagPic);
+        aboutCountryPanel.add(portraitPic);
 
+        JLabel gameSignLabel = new JLabel();
+        gameSignLabel.setIcon(new ImageIcon("files/logo.png"));
+        Country[] countriesArray = countriesToArray();
+        JComboBox<Country> countrySelector = new JComboBox<>(countriesArray);
+        countrySelector.addActionListener(e -> {
             yourCountry = (Country) countrySelector.getSelectedItem();
             flagPic.setIcon(new ImageIcon(yourCountry.getFlagPath()));
             portraitPic.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
             aboutCountryLabel.setText(yourCountry.toStringForStats());
             descriptionCountryLabel.setText(yourCountry.getDescription());
+            mainMenuFrame.pack();
+        });
 
-            JButton buttonPlay = new JButton("Почати гру");
-            buttonPlay.addActionListener(e -> {
-                regionStats.setText(yourCountry.getRegions().get(0).toString());
-                countryStats.setText(yourCountry.toStringForStats());
+        yourCountry = (Country) countrySelector.getSelectedItem();
+        flagPic.setIcon(new ImageIcon(yourCountry.getFlagPath()));
+        portraitPic.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
+        aboutCountryLabel.setText(yourCountry.toStringForStats());
+        descriptionCountryLabel.setText(yourCountry.getDescription());
 
-                flagLabel.setIcon(new ImageIcon((yourCountry.getFlagPath().toString())));
-                portraitLabel.setIcon(new ImageIcon((yourCountry.getPortraitPath().toString())));
+        JButton buttonPlay = new JButton("Почати гру");
+        buttonPlay.addActionListener(e -> {
+            selectedRegion = yourCountry.getRegions().get(0);
+            regionStats.setText(selectedRegion.toString());
+            countryStats.setText(yourCountry.toStringForStats());
 
-                jFrame.setVisible(true);
-                mainMenu.dispose();
-            });
+            flagLabel.setIcon(new ImageIcon((yourCountry.getFlagPath().toString())));
+            portraitLabel.setIcon(new ImageIcon((yourCountry.getPortraitPath().toString())));
 
-            JButton buttonDescription = new JButton("Опис гри");
-            buttonDescription.addActionListener(e -> {
-                JOptionPane.showMessageDialog(mainMenu,
-                        description);
-            });
+            gameFrame.setVisible(true);
+            mainMenuFrame.dispose();
+        });
 
-            JButton buttonExit = new JButton("Вийти");
-            buttonExit.addActionListener(e -> System.exit(0));
+        JButton buttonDescription = new JButton("Опис гри");
+        buttonDescription.addActionListener(e -> {
+            JOptionPane.showMessageDialog(mainMenuFrame,
+                    description);
+        });
 
-            startMenuPanel.add(countrySelector);
-            startMenuPanel.add(aboutCountryLabel);
-            startMenuPanel.add(descriptionCountryLabel);
-            startMenuPanel.add(aboutCountryPanel);
-            startMenuPanel.add(buttonPlay);
-            startMenuPanel.add(buttonDescription);
-            startMenuPanel.add(buttonExit);
+        JButton buttonExit = new JButton("Вийти");
+        buttonExit.addActionListener(e -> System.exit(0));
 
-            mainMenu.add(startMenuPanel);
-            mainMenu.pack();
+        startMenuPanel.add(gameSignLabel);
+        startMenuPanel.add(countrySelector);
+        startMenuPanel.add(aboutCountryLabel);
+        startMenuPanel.add(descriptionCountryLabel);
+        startMenuPanel.add(aboutCountryPanel);
+        startMenuPanel.add(buttonPlay);
+        startMenuPanel.add(buttonDescription);
+        startMenuPanel.add(buttonExit);
 
-            mainMenu.setVisible(true);
+        mainMenuFrame.add(startMenuPanel);
+        mainMenuFrame.pack();
 
-            jFrame = new JFrame("Wild Fields");
-            jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            jFrame.setLocationByPlatform(true);
-            jFrame.setContentPane(o.getUI());
-            jFrame.setLayout(new FlowLayout());
-            // jFrame.setResizable(false);
-            jFrame.getContentPane().setBackground(Color.BLACK);
+        mainMenuFrame.setVisible(true);
 
-            // TODO: Icon
-            Image icon = new ImageIcon("files/icon.png")
-                    .getImage();
-            jFrame.setIconImage(icon);
-            jFrame.pack();
+        gameFrame = new JFrame("Wild Fields");
+        gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        gameFrame.setLocationByPlatform(true);
+        gameFrame.setContentPane(o.getUI());
+        gameFrame.setLayout(new FlowLayout());
+        gameFrame.getContentPane().setBackground(Color.BLACK);
 
-            // TODO: Full Screen
+        // TODO: Icon
+        Image icon = new ImageIcon("files/icon.png")
+                .getImage();
+        gameFrame.setIconImage(icon);
+        gameFrame.pack();
 
-        };
-        SwingUtilities.invokeLater(r);
+        // TODO: Full Screen
     }
 
     private static Country[] countriesToArray() {

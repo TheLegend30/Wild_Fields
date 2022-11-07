@@ -57,6 +57,14 @@ public class Region {
         return factories;
     }
 
+    public void setPopulation(int population) {
+        this.population = population;
+    }
+
+    public void setFactories(int factories) {
+        this.factories = factories;
+    }
+
     @Override
     public String toString() {
         String string;
