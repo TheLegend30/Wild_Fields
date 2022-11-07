@@ -215,6 +215,57 @@ public class Country implements Comparable<Country> {
         }
     }
 
+    public static class Military {
+        private int manpower = 0;
+        private ArrayList<Division> divisions = new ArrayList<>();
+        // private ArrayList<General> generals = new ArrayList<>();
+        // private ArrayList<Army> armies = new ArrayList<>();
+
+        private ArrayList<Training> divisionsAreTraining = new ArrayList<>();
+
+        private static class Training {
+            private int daysLeft;
+            private Region region;
+
+            private Training(int daysLeft, Region region) {
+                this.daysLeft = daysLeft;
+                this.region = region;
+            }
+
+            public int getDaysLeft() {
+                return daysLeft;
+            }
+
+            public void setDaysLeft(int daysLeft) {
+                this.daysLeft = daysLeft;
+            }
+
+        }
+
+        private static class Division {
+            private int soldiers = 0;
+            private float quality = 0f;
+            private float equipmentNeed = 0f;
+            private Region location = Region.noRegion;
+
+            private Division(int soldiers, float quality, float equipmentNeed, Region location) {
+                this.soldiers = soldiers;
+                this.quality = quality;
+                this.equipmentNeed = equipmentNeed;
+                this.location = location;
+            }
+
+            public void setLocation(Region location) {
+                this.location = location;
+            }
+
+        }
+
+        public void buildDivision(Region location) {
+            divisionsAreTraining.add(new Training(60, location));
+        }
+    }
+
     public static enum Ideology {
         ANARCHY,
         TOTALISM,
