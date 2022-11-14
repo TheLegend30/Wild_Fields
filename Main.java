@@ -16,15 +16,17 @@ import java.util.HashMap;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.MouseInputListener;
+import javax.swing.plaf.ColorUIResource;
 import javax.imageio.ImageIO;
 
 public class Main {
     public static SimpleDateFormat dateFormat = new SimpleDateFormat("d MMMM yyyy");
-    public static Calendar calendar = new GregorianCalendar(2028, Calendar.NOVEMBER, 8);
+    public static Calendar calendar = new GregorianCalendar(2028, Calendar.JUNE, 28);
     public static JLabel calendarLabel = new JLabel(dateFormat.format(calendar.getTime()));
 
     static String description = "";
     static Country yourCountry = new Country();
+    static Country.Military.Division selectedDivision;
     static Region selectedRegion = Region.noRegion;
     static JFrame mainMenuFrame;
     static JFrame gameFrame;
@@ -45,6 +47,16 @@ public class Main {
     // ECONOMY STATS
     public static JTextArea economyStats = new JTextArea(yourCountry.getEconomy().toString());
     public static JTextArea queueStats = new JTextArea(yourCountry.getEconomy().getQueue());
+    public static JButton averagePopulationButton;
+    public static JButton averageFactoriesButton;
+    public static JButton buildFactoryButton;
+    // MILITARY STATS
+
+    public static JTextArea militaryStats = new JTextArea(yourCountry.getMilitary().toString());
+    public static JList<Country.Military.Division> militaryList = new JList<>(
+            yourCountry.getMilitary().getDivisionsArray());
+    public static JTextArea trainingStats = new JTextArea(yourCountry.getEconomy().getQueue());
+    public static JButton trainDivisionButton;
     // SETTINGS BUTTON
     public static JButton exitToMenuButton = new JButton("Вийти");
 
@@ -55,8 +67,7 @@ public class Main {
     // No country
 
     // Some variables
-    public static JButton buildFactoryButton;
-    static Boolean isBuilding = false;
+    static Regime mapRegime = Regime.STANDARD;
 
     public static JLabel flagLabel = new JLabel();
     public static JLabel portraitLabel = new JLabel();
@@ -104,6 +115,15 @@ public class Main {
         }
     }
 
+    public static enum Regime {
+        STANDARD,
+        BUILDING,
+        TRAINING,
+        MOVING,
+        AVERAGE_POPULATION,
+        AVERAGE_FACTORIES
+    }
+
     public final void initUI() throws Exception {
         if (ui != null) {
             return;
@@ -142,6 +162,21 @@ public class Main {
         queueStats.setForeground(Color.CYAN);
         queueStats.setBackground(Color.BLACK);
 
+        militaryStats.setEditable(false);
+        militaryStats.setLineWrap(true);
+        militaryStats.setWrapStyleWord(true);
+        militaryStats.setForeground(Color.CYAN);
+        militaryStats.setBackground(Color.BLACK);
+
+        militaryList.setForeground(Color.CYAN);
+        militaryList.setBackground(Color.BLACK);
+
+        trainingStats.setEditable(false);
+        trainingStats.setLineWrap(true);
+        trainingStats.setWrapStyleWord(true);
+        trainingStats.setForeground(Color.CYAN);
+        trainingStats.setBackground(Color.BLACK);
+
         File file = new File("files/map.png");
         image = ImageIO.read(file);
         area = getOutline(Color.WHITE, image, 12);
@@ -164,7 +199,7 @@ public class Main {
                 Point pointOnImage = new Point(x, y);
 
                 int key = 0;
-                if (isBuilding) {
+                if (mapRegime == Regime.BUILDING) {
                     for (HashMap.Entry<Integer, Area> entrySet : allRegions.entrySet()) {
                         if (entrySet.getValue().contains(pointOnImage)) {
                             key = entrySet.getKey();
@@ -173,6 +208,38 @@ public class Main {
                                 yourCountry.getEconomy().buildFactory(selectedRegion);
                                 yourCountry.getEconomy().update(yourCountry);
                                 refresh();
+                            }
+                        }
+                    }
+                } else if (mapRegime == Regime.TRAINING) {
+                    for (HashMap.Entry<Integer, Area> entrySet : allRegions.entrySet()) {
+                        if (entrySet.getValue().contains(pointOnImage)) {
+                            key = entrySet.getKey();
+                            if (yourCountry.getRegions().contains(Region.getRegionByID(key))) {
+                                if (yourCountry.getMilitary().getManpower() >= 1000) {
+                                    yourCountry.getMilitary()
+                                            .setManpower(yourCountry.getMilitary().getManpower() - 1000);
+                                    selectedRegion = Region.getRegionByID(key);
+                                    yourCountry.getMilitary().trainDivision(selectedRegion);
+                                    refresh();
+                                } else {
+                                    JOptionPane.showMessageDialog(gameFrame,
+                                            "Недостатньо призовників. Необхідно хоча б 1000 чоловік.");
+                                }
+
+                            }
+                        }
+                    }
+                } else if (mapRegime == Regime.MOVING) {
+                    for (HashMap.Entry<Integer, Area> entrySet : allRegions.entrySet()) {
+                        if (entrySet.getValue().contains(pointOnImage)) {
+                            key = entrySet.getKey();
+                            if (yourCountry.getRegions().contains(Region.getRegionByID(key))) {
+                                selectedRegion = Region.getRegionByID(key);
+                                selectedDivision.moveDivision(selectedRegion);
+                                updateGamePanel();
+                                refresh();
+                                mapRegime = Regime.STANDARD;
                             }
                         }
                     }
@@ -242,6 +309,7 @@ public class Main {
             calendar.add(Calendar.DATE, 1);
             calendarLabel.setText(dateFormat.format(calendar.getTime()));
             yourCountry.moveOneDay();
+            EventPane.showNews();
             if (calendar.get(Calendar.DAY_OF_MONTH) == 1) {
                 yourCountry.moveOneMonth();
             }
@@ -296,7 +364,7 @@ public class Main {
         });
 
         BoxLayout infoBox = new BoxLayout(infoPanel,
-                BoxLayout.Y_AXIS);
+                BoxLayout.PAGE_AXIS);
         infoPanel.setLayout(infoBox);
         infoPanel.add(regionStats);
         infoPanel.add(countryStats);
@@ -332,9 +400,22 @@ public class Main {
             economyStats.setText(yourCountry.getEconomy().toString());
         });
 
+        averagePopulationButton = new JButton("Середнє населення по Україні");
+        averageFactoriesButton = new JButton("Середнє кількість заводів по Україні");
         buildFactoryButton = new JButton("Побудувати фабрику");
-        JButton queueButton = new JButton("Список будівництва");
+        JButton queueButton = new JButton("Список будівництв");
         JButton queueBackButton = new JButton("Назад");
+        trainDivisionButton = new JButton("Підготувати дивізію");
+        JButton trainingButton = new JButton("Дивізії, що готуються");
+        JButton trainingBackButton = new JButton("Назад");
+
+        averagePopulationButton.addActionListener(e -> {
+            averagePopulationMethod();
+        });
+
+        averageFactoriesButton.addActionListener(e -> {
+            averageFactoriesMethod();
+        });
 
         buildFactoryButton.addActionListener(e -> {
             buildFactoryMethod();
@@ -342,14 +423,38 @@ public class Main {
 
         queueButton.addActionListener(e -> {
             infoPanel.removeAll();
-            infoPanel.add(queueStats);
             infoPanel.add(queueBackButton);
+            infoPanel.add(queueStats);
             queueStats.setText(yourCountry.getEconomy().getQueue());
             gamePanel.updateUI();
         });
 
         queueBackButton.addActionListener(e -> {
             economyButton.doClick();
+        });
+
+        trainDivisionButton.addActionListener(e -> {
+            trainDivisionMethod();
+        });
+
+        trainingButton.addActionListener(e -> {
+            infoPanel.removeAll();
+            infoPanel.add(trainingBackButton);
+            infoPanel.add(trainingStats);
+            trainingStats.setText(yourCountry.getMilitary().getTraining());
+            trainingStats.setFont(new Font(null, Font.PLAIN, 11));
+            gamePanel.updateUI();
+        });
+
+        trainingBackButton.addActionListener(e -> {
+            militaryButton.doClick();
+        });
+
+        militaryList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                selectedDivision = militaryList.getSelectedValue();
+                moveDivisionMethod();
+            }
         });
 
         infoButton.addActionListener(e -> {
@@ -363,13 +468,27 @@ public class Main {
         economyButton.addActionListener(e -> {
             infoPanel.removeAll();
             infoPanel.add(economyStats);
+            infoPanel.add(buildFactoryButton);
+            infoPanel.add(averagePopulationButton);
+            infoPanel.add(averageFactoriesButton);
+            infoPanel.add(queueButton);
             infoPanel.add(populationtTaxesModifierSlider);
             infoPanel.add(factoriesTaxesModifierSlider);
-            infoPanel.add(buildFactoryButton);
-            infoPanel.add(queueButton);
             economyStats.setText(yourCountry.getEconomy().toString());
             populationtTaxesModifierSlider.setValue(yourCountry.getEconomy().getPopulationTaxesModifier());
             factoriesTaxesModifierSlider.setValue(yourCountry.getEconomy().getFactoriesTaxesModifier());
+            gamePanel.updateUI();
+        });
+        militaryButton.addActionListener(e -> {
+            infoPanel.removeAll();
+            infoPanel.add(trainDivisionButton);
+            infoPanel.add(trainingButton);
+            infoPanel.add(militaryStats);
+            infoPanel.add(militaryList);
+            militaryStats.setFont(new Font(null, Font.PLAIN, 11));
+            militaryStats.setText(yourCountry.getMilitary().toString());
+            militaryList.setFont(new Font(null, Font.PLAIN, 11));
+            militaryList.setListData(yourCountry.getMilitary().getDivisionsArray());
             gamePanel.updateUI();
         });
         settingsButton.addActionListener(e -> {
@@ -409,13 +528,46 @@ public class Main {
 
     }
 
-    private void buildFactoryMethod() {
-        isBuilding = !isBuilding;
-        if (isBuilding) {
-            buildFactoryButton.setText("Відмінити");
+    private void averagePopulationMethod() {
+
+        if (mapRegime != Regime.AVERAGE_POPULATION) {
+            mapRegime = Regime.AVERAGE_POPULATION;
         } else {
-            buildFactoryButton.setText("Побудувати фабрику");
+            mapRegime = Regime.STANDARD;
         }
+        refresh();
+    }
+
+    private void averageFactoriesMethod() {
+        if (mapRegime != Regime.AVERAGE_FACTORIES) {
+            mapRegime = Regime.AVERAGE_FACTORIES;
+        } else {
+            mapRegime = Regime.STANDARD;
+        }
+        refresh();
+    }
+
+    private void buildFactoryMethod() {
+        if (mapRegime != Regime.BUILDING) {
+            mapRegime = Regime.BUILDING;
+        } else {
+            mapRegime = Regime.STANDARD;
+        }
+        refresh();
+    }
+
+    private void trainDivisionMethod() {
+        if (mapRegime != Regime.TRAINING) {
+            mapRegime = Regime.TRAINING;
+        } else {
+            mapRegime = Regime.STANDARD;
+        }
+        refresh();
+
+    }
+
+    private void moveDivisionMethod() {
+        mapRegime = Regime.MOVING;
         refresh();
     }
 
@@ -519,7 +671,6 @@ public class Main {
 
     private void refresh() {
         output.setIcon(new ImageIcon(getImage()));
-        updateGamePanel();
     }
 
     private void updateGamePanel() {
@@ -527,6 +678,9 @@ public class Main {
         countryStats.setText(yourCountry.toStringForStats());
         economyStats.setText(yourCountry.getEconomy().toString());
         queueStats.setText(yourCountry.getEconomy().getQueue());
+        militaryStats.setText(yourCountry.getMilitary().toString());
+        militaryList.setListData(yourCountry.getMilitary().getDivisionsArray());
+        trainingStats.setText(yourCountry.getMilitary().getTraining());
         gamePanel.updateUI();
     }
 
@@ -538,7 +692,28 @@ public class Main {
         g.setColor(Color.ORANGE.darker());
         g.fill(area);
 
-        if (isBuilding) {
+        if (mapRegime == Regime.AVERAGE_POPULATION) {
+            averagePopulationButton.setText("Відмінити");
+        } else {
+            averagePopulationButton.setText("Середнє населення по Україні");
+        }
+        if (mapRegime == Regime.AVERAGE_FACTORIES) {
+            averageFactoriesButton.setText("Відмінити");
+        } else {
+            averageFactoriesButton.setText("Середня кількість заводів по Україні");
+        }
+        if (mapRegime == Regime.BUILDING) {
+            buildFactoryButton.setText("Відмінити");
+        } else {
+            buildFactoryButton.setText("Побудувати фабрику");
+        }
+        if (mapRegime == Regime.TRAINING) {
+            trainDivisionButton.setText("Відмінити");
+        } else {
+            trainDivisionButton.setText("Підготувати дивізію");
+        }
+
+        if (mapRegime == Regime.BUILDING) {
             for (Country country : Country.countries) {
                 if (country.getName().equals(yourCountry.getName())) {
                     for (Region region : country.getRegions()) {
@@ -546,6 +721,52 @@ public class Main {
                         g.fill(allRegions.get(region.getID()));
                     }
                 }
+            }
+        } else if (mapRegime == Regime.TRAINING) {
+            for (Country country : Country.countries) {
+                if (country.getName().equals(yourCountry.getName())) {
+                    for (Region region : country.getRegions()) {
+                        g.setColor(Color.GREEN);
+                        g.fill(allRegions.get(region.getID()));
+                    }
+                }
+            }
+        } else if (mapRegime == Regime.MOVING) {
+            for (Country country : Country.countries) {
+                if (country.getName().equals(yourCountry.getName())) {
+                    for (Region region : country.getRegions()) {
+                        g.setColor(Color.GREEN);
+                        g.fill(allRegions.get(region.getID()));
+                    }
+                }
+            }
+        } else if (mapRegime == Regime.AVERAGE_POPULATION) {
+            for (Region region : Region.regions) {
+                int green = 255;
+                int red = 255;
+                float modifier = (float) region.getPopulation() / (float) Region.getAveragePopulation();
+                if (modifier >= 1) {
+                    red = (int) (red / modifier);
+                } else {
+                    green = (int) (green * modifier);
+                }
+                Color color = new ColorUIResource(red, green, 0);
+                g.setColor(color);
+                g.fill(allRegions.get(region.getID()));
+            }
+        } else if (mapRegime == Regime.AVERAGE_FACTORIES) {
+            for (Region region : Region.regions) {
+                int green = 255;
+                int red = 255;
+                float modifier = (float) region.getFactories() / (float) Region.getAverageFactories();
+                if (modifier >= 1) {
+                    red = (int) (red / modifier);
+                } else {
+                    green = (int) (green * modifier);
+                }
+                Color color = new ColorUIResource(red, green, 0);
+                g.setColor(color);
+                g.fill(allRegions.get(region.getID()));
             }
         } else {
             for (Country country : Country.countries) {
@@ -597,6 +818,9 @@ public class Main {
     public static void main(String[] args) {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            UIManager.put("OptionPane.background", new ColorUIResource(Color.BLACK));
+            UIManager.put("OptionPane.messageForeground", new ColorUIResource(Color.CYAN));
+            UIManager.put("Panel.background", new ColorUIResource(Color.BLACK));
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -674,7 +898,7 @@ public class Main {
         JButton buttonDescription = new JButton("Опис гри");
         buttonDescription.addActionListener(e -> {
             JOptionPane.showMessageDialog(mainMenuFrame,
-                    description);
+                    description, "Опис гри", JOptionPane.INFORMATION_MESSAGE, new ImageIcon("files/icon.png"));
         });
 
         JButton buttonExit = new JButton("Вийти");

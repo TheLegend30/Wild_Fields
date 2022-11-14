@@ -16,6 +16,7 @@ public class Country implements Comparable<Country> {
     private String flagPath = String.format(tempFlagPath, code);
     private String portraitPath = String.format(tempPortraitPath, code + "_" + leader.ideology.valueOf());
     private Economy economy = new Economy();
+    private Military military = new Military();
 
     public final static String tempFlagPath = "files/flags/flag_%s.png";
     public final static String tempPortraitPath = "files/portraits/portrait_%s.png";
@@ -34,6 +35,7 @@ public class Country implements Comparable<Country> {
         this.flagPath = String.format(tempFlagPath, code);
         this.portraitPath = String.format(tempPortraitPath, code + "_" + leader.ideology.valueOf());
         this.economy = new Economy(this);
+        this.military = new Military(this);
     }
 
     public static class Leader {
@@ -156,6 +158,10 @@ public class Country implements Comparable<Country> {
             }
         }
 
+        public int getPopulation() {
+            return population;
+        }
+
         public int getPopulationTaxesModifier() {
             return populationTaxesModifier;
         }
@@ -218,10 +224,16 @@ public class Country implements Comparable<Country> {
     public static class Military {
         private int manpower = 0;
         private ArrayList<Division> divisions = new ArrayList<>();
-        // private ArrayList<General> generals = new ArrayList<>();
-        // private ArrayList<Army> armies = new ArrayList<>();
 
         private ArrayList<Training> divisionsAreTraining = new ArrayList<>();
+
+        private Military() {
+            this.manpower = 0;
+        }
+
+        private Military(Country country) {
+            this.manpower = (int) (country.getEconomy().getPopulation() * 0.05);
+        }
 
         private static class Training {
             private int daysLeft;
@@ -242,27 +254,92 @@ public class Country implements Comparable<Country> {
 
         }
 
-        private static class Division {
+        public static class Division {
+            private static int current_number = 1;
+            private int number = 0;
             private int soldiers = 0;
             private float quality = 0f;
-            private float equipmentNeed = 0f;
+            // TODO: equipement need
+            // private float equipmentNeed = 0f;
             private Region location = Region.noRegion;
 
-            private Division(int soldiers, float quality, float equipmentNeed, Region location) {
+            private Division(int soldiers, float quality, Region location) {
+                this.number = current_number++;
                 this.soldiers = soldiers;
                 this.quality = quality;
-                this.equipmentNeed = equipmentNeed;
+                // this.equipmentNeed = soldiers * (3 + quality * 2);
                 this.location = location;
             }
 
-            public void setLocation(Region location) {
+            public void moveDivision(Region location) {
                 this.location = location;
             }
+
+            @Override
+            public String toString() {
+                return "\nДивизія №" + number + " в " + soldiers + " чоловік " + " з якістю "
+                        + String.format("%.2f", quality)
+                        + " в регіоні " + location.getName();
+            }
+        }
+
+        public void trainDivision(Region location) {
+            int daysLeft = 10;
+            divisionsAreTraining.add(new Training(daysLeft, location));
+        }
+
+        public int getManpower() {
+            return manpower;
+        }
+
+        public Division[] getDivisionsArray() {
+
+            Division[] d = new Division[divisions.size()];
+            for (int i = 0; i < d.length; i++) {
+                d[i] = divisions.get(i);
+            }
+            return d;
 
         }
 
-        public void buildDivision(Region location) {
-            divisionsAreTraining.add(new Training(60, location));
+        public void setManpower(int manpower) {
+            this.manpower = manpower;
+        }
+
+        public void checkIfTrained() {
+            Iterator<Training> tIterator = divisionsAreTraining.iterator();
+            while (tIterator.hasNext()) {
+                Training training = tIterator.next();
+                training.setDaysLeft(training.getDaysLeft() - 1);
+                if (training.getDaysLeft() == 0) {
+                    divisions.add(new Division(1000, 1, training.region));
+                    tIterator.remove();
+                }
+            }
+        }
+
+        @Override
+        public String toString() {
+            String string = "";
+            string += "Призовники: " + manpower + "\n";
+            return string;
+        }
+
+        public String getTraining() {
+            String string = "";
+            for (Training training : divisionsAreTraining) {
+                string += "\nДивизія готується: " + training.daysLeft
+                        + " днів в регіоні " + training.region.getName();
+            }
+            return string;
+        }
+
+        public String divisionsToString() {
+            String string = "";
+            for (Division division : divisions) {
+                string += division.toString();
+            }
+            return string;
         }
     }
 
@@ -377,6 +454,10 @@ public class Country implements Comparable<Country> {
         return economy;
     }
 
+    public Military getMilitary() {
+        return military;
+    }
+
     @Override
     public String toString() {
         return getName();
@@ -425,7 +506,8 @@ public class Country implements Comparable<Country> {
         countries.add(new Country("Фастівська Народна Республіка", "FAS", new Color(119, 210, 180),
                 new Leader("Олесь Янчук", Ideology.SOCIAL_DEMOCRACY,
                         "Директорія - Петлюрівці", 65),
-                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(71), Region.getRegionByID(80) }))));
+                new ArrayList<>(
+                        Arrays.asList(new Region[] { Region.getRegionByID(71), Region.getRegionByID(80) }))));
 
         countries.add(new Country("Обухівський Мегакомбінат", "OBH", new Color(10,
                 117, 223),
@@ -483,19 +565,46 @@ public class Country implements Comparable<Country> {
                 new Leader("Мікаель фон Поплавскі", Ideology.RADICALISM,
                         "НСУАП - Флюґель дер Аґрономен", 100),
                 new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(243),
-                        Region.getRegionByID(246) }))));
+                        Region.getRegionByID(246), Region.getRegionByID(253) }))));
 
         countries.add(new Country("РУНВіровці", "RUN", new Color(42,
                 98, 193),
                 new Leader("Олег Безверхий", Ideology.RETROGRADISM,
                         "Силенкоїсти", 100),
-                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(173), Region.getRegionByID(209) }))));
+                new ArrayList<>(
+                        Arrays.asList(new Region[] { Region.getRegionByID(173), Region.getRegionByID(209) }))));
+
+        countries.add(new Country("ФК \"Інгулець\"", "INH", new Color(218, 103, 24),
+                new Leader("Олександр Поворознюк", Ideology.TRADITIONALISM,
+                        "Рада директорів ТОВ \"Агрофірма Пʼятихатська\"", 85),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(245) }))));
+
+        countries.add(new Country("Новомиргород", "NMR", new Color(0, 146, 63),
+                new Leader("Олександр Жовна", Ideology.SOCIAL_DEMOCRACY,
+                        "Спілка педагогів Новомиргорода", 55),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(195) }))));
+
+        countries.add(new Country("Знамʼянська радянська адміністрація", "ZNM", new Color(255, 56, 63),
+                new Leader("Євген Мармазов", Ideology.TOTALISM,
+                        "КПУ - Мармазовці", 85),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(187) }))));
+
+        countries.add(new Country("Театр Корифеїв", "KOR", new Color(233, 117, 13),
+                new Leader("Лесь Подервʼянський", Ideology.VOLISM,
+                        "Союз Художників", 60),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(213), Region.getRegionByID(226) }))));
+
+        countries.add(new Country("Екзампей", "EKZ", new Color(124, 124, 228),
+                new Leader("Сергій Полін", Ideology.RETROGRADISM,
+                        "Группа археологів", 35),
+                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(280) }))));
 
         countries.add(new Country("Чигиринський полк", "CHH", new Color(216,
                 29, 79),
                 new Leader("Полковник Тиміш Хмельницький", Ideology.DONTSOVISM,
                         "Лоялісти Хмельницького", 48),
-                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(160), Region.getRegionByID(164) }))));
+                new ArrayList<>(
+                        Arrays.asList(new Region[] { Region.getRegionByID(160), Region.getRegionByID(164) }))));
 
         countries.add(new Country("Канівський полк", "KAN", new Color(24, 85, 144),
                 new Leader("Полковник Добровіст Захаренко", Ideology.ANARCHY,
@@ -561,14 +670,16 @@ public class Country implements Comparable<Country> {
     }
 
     public void moveOneDay() {
-        this.getEconomy().checkIfBuilt();
+        economy.checkIfBuilt();
+        military.checkIfTrained();
     }
 
     public void moveOneMonth() {
-        for (Region region : this.regions) {
+        for (Region region : regions) {
             region.setPopulation((int) (region.getPopulation() * 1.0005));
+            military.setManpower((int) (military.getManpower() + (economy.getPopulation() * 0.01 * 0.05)));
         }
-        this.economy.update(this);
-        this.economy.addProfit();
+        economy.update(this);
+        economy.addProfit();
     }
 }

@@ -91,4 +91,20 @@ public class Region {
         }
         return noRegion;
     }
+
+    public static int getAveragePopulation() {
+        int allPopulation = 0;
+        for (Region r : regions) {
+            allPopulation += r.getPopulation();
+        }
+        return allPopulation / regions.size();
+    }
+
+    public static int getAverageFactories() {
+        int allFactories = 0;
+        for (Region r : regions) {
+            allFactories += r.getFactories();
+        }
+        return allFactories / regions.size();
+    }
 }
