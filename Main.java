@@ -12,11 +12,11 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 
-// TODO: Borders for pics
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.MouseInputListener;
 import javax.swing.plaf.ColorUIResource;
+
 import javax.imageio.ImageIO;
 
 public class Main {
@@ -50,13 +50,19 @@ public class Main {
     public static JButton averagePopulationButton;
     public static JButton averageFactoriesButton;
     public static JButton buildFactoryButton;
+    // DIPLOMACY STATS
+    public static JComboBox<Country.Diplomacy.Relation> countriesRelationsComboBox;
+    static Country.Diplomacy.Relation currentRelation;
+    public static JTextArea diplomacyStats = new JTextArea("");
+    public static JButton declareWarButton = new JButton("Оголосити війну");
     // MILITARY STATS
-
     public static JTextArea militaryStats = new JTextArea(yourCountry.getMilitary().toString());
     public static JList<Country.Military.Division> militaryList = new JList<>(
             yourCountry.getMilitary().getDivisionsArray());
     public static JTextArea trainingStats = new JTextArea(yourCountry.getEconomy().getQueue());
     public static JButton trainDivisionButton;
+    // PRIORITIES STATs
+    public static JPanel prioritiesPanel = new JPanel();
     // SETTINGS BUTTON
     public static JButton exitToMenuButton = new JButton("Вийти");
 
@@ -88,7 +94,7 @@ public class Main {
     BufferedImage image;
     Area area;
     ArrayList<Shape> shapeList;
-    static HashMap<Integer, Area> allRegions = new HashMap<>();
+    public static HashMap<Integer, Area> allRegions = new HashMap<>();
 
     Thread checkIfPlayerRunningThread = new Thread(new Runnable() {
         @Override
@@ -100,9 +106,16 @@ public class Main {
     });
 
     {
+        Region.setRegions();
+        Country.setCountries();
         flagLabel.setIcon(new ImageIcon(yourCountry.getFlagPath()));
         portraitLabel.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
         player = new MidiPlayer();
+        yourCountry = Country.countries.get(0);
+        countriesRelationsComboBox = new JComboBox<>(yourCountry.getDiplomacy().getRelationsArray());
+        currentRelation = (Country.Diplomacy.Relation) countriesRelationsComboBox.getSelectedItem();
+        diplomacyStats = new JTextArea(currentRelation.toStringForStats());
+
         // player.start();
         // checkIfPlayerRunningThread.start();
     }
@@ -161,6 +174,24 @@ public class Main {
         queueStats.setWrapStyleWord(true);
         queueStats.setForeground(Color.CYAN);
         queueStats.setBackground(Color.BLACK);
+
+        countriesRelationsComboBox.addActionListener(e -> {
+            currentRelation = (Country.Diplomacy.Relation) countriesRelationsComboBox.getSelectedItem();
+            diplomacyStats.setText(currentRelation.toStringForStats());
+        });
+
+        diplomacyStats.setEditable(false);
+        diplomacyStats.setLineWrap(true);
+        diplomacyStats.setWrapStyleWord(true);
+        diplomacyStats.setForeground(Color.CYAN);
+        diplomacyStats.setBackground(Color.BLACK);
+
+        declareWarButton.addActionListener(e -> {
+            currentRelation.setInWar(true);
+            diplomacyStats.setText(currentRelation.toStringForStats());
+        });
+
+        prioritiesPanel.setBackground(Color.BLACK);
 
         militaryStats.setEditable(false);
         militaryStats.setLineWrap(true);
@@ -222,6 +253,7 @@ public class Main {
                                     selectedRegion = Region.getRegionByID(key);
                                     yourCountry.getMilitary().trainDivision(selectedRegion);
                                     refresh();
+                                    updateGamePanel();
                                 } else {
                                     JOptionPane.showMessageDialog(gameFrame,
                                             "Недостатньо призовників. Необхідно хоча б 1000 чоловік.");
@@ -238,8 +270,22 @@ public class Main {
                                 selectedRegion = Region.getRegionByID(key);
                                 selectedDivision.moveDivision(selectedRegion);
                                 updateGamePanel();
-                                refresh();
                                 mapRegime = Regime.STANDARD;
+                                refresh();
+                                militaryList.clearSelection();
+                            } else {
+                                for (Country.Diplomacy.Relation relation : yourCountry.getDiplomacy().relations) {
+                                    if (relation.areInWar()) {
+                                        if (relation.getCountry().getRegions().contains(Region.getRegionByID(key))) {
+                                            selectedRegion = Region.getRegionByID(key);
+                                            selectedDivision.moveDivision(selectedRegion);
+                                            updateGamePanel();
+                                            mapRegime = Regime.STANDARD;
+                                            refresh();
+                                            militaryList.clearSelection();
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -364,7 +410,7 @@ public class Main {
         });
 
         BoxLayout infoBox = new BoxLayout(infoPanel,
-                BoxLayout.PAGE_AXIS);
+                BoxLayout.Y_AXIS);
         infoPanel.setLayout(infoBox);
         infoPanel.add(regionStats);
         infoPanel.add(countryStats);
@@ -408,6 +454,8 @@ public class Main {
         trainDivisionButton = new JButton("Підготувати дивізію");
         JButton trainingButton = new JButton("Дивізії, що готуються");
         JButton trainingBackButton = new JButton("Назад");
+        JButton divisionsButton = new JButton("Дивізії");
+        JButton divisionBackButton = new JButton("Назад");
 
         averagePopulationButton.addActionListener(e -> {
             averagePopulationMethod();
@@ -439,8 +487,13 @@ public class Main {
 
         trainingButton.addActionListener(e -> {
             infoPanel.removeAll();
+            JPanel trainingPanel = new JPanel();
+            BoxLayout box = new BoxLayout(trainingPanel, BoxLayout.Y_AXIS);
+            trainingPanel.setLayout(box);
+            trainingPanel.add(trainingStats);
+            JScrollPane trainingPane = new JScrollPane(trainingPanel);
             infoPanel.add(trainingBackButton);
-            infoPanel.add(trainingStats);
+            infoPanel.add(trainingPane);
             trainingStats.setText(yourCountry.getMilitary().getTraining());
             trainingStats.setFont(new Font(null, Font.PLAIN, 11));
             gamePanel.updateUI();
@@ -450,8 +503,42 @@ public class Main {
             militaryButton.doClick();
         });
 
+        divisionsButton.addActionListener(e -> {
+            infoPanel.removeAll();
+            JPanel militaryPanel = new JPanel(new FlowLayout());
+            militaryPanel.add(militaryList);
+            JScrollPane militaryPane = new JScrollPane(militaryPanel);
+            infoPanel.add(divisionBackButton);
+            infoPanel.add(militaryPane);
+            militaryList.setFont(new Font(null, Font.PLAIN, 8));
+            militaryList.setListData(yourCountry.getMilitary().getDivisionsArray());
+            gamePanel.updateUI();
+        });
+
+        divisionBackButton.addActionListener(e -> {
+            militaryButton.doClick();
+        });
+
+        militaryList.addMouseListener(new MouseAdapter() {
+
+            int lastSelectedIndex = -1;
+
+            public void mouseClicked(MouseEvent e) {
+
+                int index = militaryList.getSelectedIndex();
+
+                if (index != -1 && index == lastSelectedIndex) {
+                    militaryList.clearSelection();
+                    mapRegime = Regime.STANDARD;
+                    refresh();
+                }
+
+                lastSelectedIndex = militaryList.getSelectedIndex();
+            }
+        });
+
         militaryList.addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
+            if (!e.getValueIsAdjusting() && militaryList.getSelectedIndex() >= 0) {
                 selectedDivision = militaryList.getSelectedValue();
                 moveDivisionMethod();
             }
@@ -479,16 +566,35 @@ public class Main {
             factoriesTaxesModifierSlider.setValue(yourCountry.getEconomy().getFactoriesTaxesModifier());
             gamePanel.updateUI();
         });
+        diplomacyButton.addActionListener(e -> {
+            infoPanel.removeAll();
+            infoPanel.add(countriesRelationsComboBox);
+            infoPanel.add(diplomacyStats);
+            infoPanel.add(declareWarButton);
+            diplomacyStats.setText(currentRelation.toStringForStats());
+            gamePanel.updateUI();
+        });
         militaryButton.addActionListener(e -> {
             infoPanel.removeAll();
+            infoPanel.add(militaryStats);
             infoPanel.add(trainDivisionButton);
             infoPanel.add(trainingButton);
-            infoPanel.add(militaryStats);
-            infoPanel.add(militaryList);
+            infoPanel.add(divisionsButton);
             militaryStats.setFont(new Font(null, Font.PLAIN, 11));
             militaryStats.setText(yourCountry.getMilitary().toString());
-            militaryList.setFont(new Font(null, Font.PLAIN, 11));
-            militaryList.setListData(yourCountry.getMilitary().getDivisionsArray());
+            gamePanel.updateUI();
+        });
+        prioritiesButton.addActionListener(e -> {
+            infoPanel.removeAll();
+            prioritiesPanel.removeAll();
+            for (int i = 0; i < yourCountry.getPriorities().size(); i++) {
+                JButton button = new JButton();
+                button.setBorder(BorderFactory.createEmptyBorder());
+                button.setContentAreaFilled(false);
+                button.setIcon(new ImageIcon(yourCountry.getPriorities().get(i).getImagePath()));
+                prioritiesPanel.add(button);
+            }
+            infoPanel.add(prioritiesPanel);
             gamePanel.updateUI();
         });
         settingsButton.addActionListener(e -> {
@@ -567,7 +673,9 @@ public class Main {
     }
 
     private void moveDivisionMethod() {
-        mapRegime = Regime.MOVING;
+        if (mapRegime != Regime.MOVING) {
+            mapRegime = Regime.MOVING;
+        }
         refresh();
     }
 
@@ -638,9 +746,6 @@ public class Main {
             pi.next();
         }
 
-        Region.setRegions();
-        Country.setCountries();
-
         return regions;
     }
 
@@ -669,7 +774,7 @@ public class Main {
                 && (bP - tolerance <= bT) && (bT <= bP + tolerance));
     }
 
-    private void refresh() {
+    public void refresh() {
         output.setIcon(new ImageIcon(getImage()));
     }
 
@@ -678,9 +783,11 @@ public class Main {
         countryStats.setText(yourCountry.toStringForStats());
         economyStats.setText(yourCountry.getEconomy().toString());
         queueStats.setText(yourCountry.getEconomy().getQueue());
+        currentRelation = (Country.Diplomacy.Relation) countriesRelationsComboBox.getSelectedItem();
+        diplomacyStats.setText(currentRelation.toStringForStats());
         militaryStats.setText(yourCountry.getMilitary().toString());
-        militaryList.setListData(yourCountry.getMilitary().getDivisionsArray());
         trainingStats.setText(yourCountry.getMilitary().getTraining());
+        infoPanel.validate();
         gamePanel.updateUI();
     }
 
@@ -736,7 +843,21 @@ public class Main {
                 if (country.getName().equals(yourCountry.getName())) {
                     for (Region region : country.getRegions()) {
                         g.setColor(Color.GREEN);
+                        if (region.getID() == selectedDivision.getLocation().getID()) {
+                            g.setColor(Color.ORANGE);
+                        }
                         g.fill(allRegions.get(region.getID()));
+                    }
+                    for (Country.Diplomacy.Relation relation : country.getDiplomacy().relations) {
+                        if (relation.areInWar()) {
+                            for (Region enemyRegion : relation.getCountry().getRegions()) {
+                                g.setColor(Color.RED);
+                                if (enemyRegion.getID() == selectedDivision.getLocation().getID()) {
+                                    g.setColor(Color.ORANGE);
+                                }
+                                g.fill(allRegions.get(enemyRegion.getID()));
+                            }
+                        }
                     }
                 }
             }
@@ -854,12 +975,6 @@ public class Main {
         aboutCountryLabel.setForeground(Color.CYAN);
         aboutCountryLabel.setOpaque(true);
 
-        JTextArea descriptionCountryLabel = new JTextArea();
-        descriptionCountryLabel.setBackground(Color.BLACK);
-        descriptionCountryLabel.setForeground(Color.CYAN);
-        descriptionCountryLabel.setOpaque(true);
-        descriptionCountryLabel.setSize(new Dimension(500, 500));
-
         aboutCountryPanel.add(flagPic);
         aboutCountryPanel.add(portraitPic);
 
@@ -872,7 +987,6 @@ public class Main {
             flagPic.setIcon(new ImageIcon(yourCountry.getFlagPath()));
             portraitPic.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
             aboutCountryLabel.setText(yourCountry.toStringForStats());
-            descriptionCountryLabel.setText(yourCountry.getDescription());
             mainMenuFrame.pack();
         });
 
@@ -880,7 +994,6 @@ public class Main {
         flagPic.setIcon(new ImageIcon(yourCountry.getFlagPath()));
         portraitPic.setIcon(new ImageIcon(yourCountry.getPortraitPath()));
         aboutCountryLabel.setText(yourCountry.toStringForStats());
-        descriptionCountryLabel.setText(yourCountry.getDescription());
 
         JButton buttonPlay = new JButton("Почати гру");
         buttonPlay.addActionListener(e -> {
@@ -891,8 +1004,27 @@ public class Main {
             flagLabel.setIcon(new ImageIcon((yourCountry.getFlagPath().toString())));
             portraitLabel.setIcon(new ImageIcon((yourCountry.getPortraitPath().toString())));
 
+            // TODO: Change
+            countriesRelationsComboBox.setModel(
+                    new DefaultComboBoxModel<Country.Diplomacy.Relation>(
+                            yourCountry.getDiplomacy().getRelationsArray()));
+            currentRelation = (Country.Diplomacy.Relation) countriesRelationsComboBox.getSelectedItem();
+            diplomacyStats = new JTextArea(currentRelation.toStringForStats());
+            diplomacyStats.setEditable(false);
+            diplomacyStats.setLineWrap(true);
+            diplomacyStats.setWrapStyleWord(true);
+            diplomacyStats.setForeground(Color.CYAN);
+            diplomacyStats.setBackground(Color.BLACK);
+
             gameFrame.setVisible(true);
             mainMenuFrame.dispose();
+        });
+
+        JButton buttonCountryDescription = new JButton("Опис країни");
+        buttonCountryDescription.addActionListener(e -> {
+            JOptionPane.showMessageDialog(mainMenuFrame,
+                    yourCountry.getDescription(), "Опис країни", JOptionPane.INFORMATION_MESSAGE,
+                    new ImageIcon(yourCountry.getFlagPath()));
         });
 
         JButton buttonDescription = new JButton("Опис гри");
@@ -907,10 +1039,10 @@ public class Main {
         startMenuPanel.add(gameSignLabel);
         startMenuPanel.add(countrySelector);
         startMenuPanel.add(aboutCountryLabel);
-        startMenuPanel.add(descriptionCountryLabel);
         startMenuPanel.add(aboutCountryPanel);
         startMenuPanel.add(buttonPlay);
         startMenuPanel.add(buttonDescription);
+        startMenuPanel.add(buttonCountryDescription);
         startMenuPanel.add(buttonExit);
 
         mainMenuFrame.add(startMenuPanel);
@@ -925,7 +1057,6 @@ public class Main {
         gameFrame.setLayout(new FlowLayout());
         gameFrame.getContentPane().setBackground(Color.BLACK);
 
-        // TODO: Icon
         Image icon = new ImageIcon("files/icon.png")
                 .getImage();
         gameFrame.setIconImage(icon);
@@ -940,5 +1071,153 @@ public class Main {
             countriesArray[i] = Country.countries.get(i);
         }
         return countriesArray;
+    }
+}
+
+abstract class Operation {
+    protected static final String name = "";
+
+    @Override
+    public String toString() {
+        String string = "Операція: ";
+        return string;
+    }
+
+    public String getName() {
+        return Operation.name;
+    }
+}
+
+class OperationStaying extends Operation {
+    public static final String name = "Залишатися на місці";
+    private Region location;
+
+    OperationStaying(Region location) {
+        this.location = location;
+    }
+
+    @Override
+    public String toString() {
+        String string = super.toString() + name + "\n";
+        string += "у регіоні: " + location.getName() + "\n";
+        return string;
+    }
+
+    @Override
+    public String getName() {
+        return OperationStaying.name;
+    }
+}
+
+class OperationMovement extends Operation {
+    public static final String name = "Переміщення";
+    private Region from;
+    private Region to;
+    private int daysOfMovement;
+
+    OperationMovement(Region from, Region to) {
+        this.from = from;
+        this.to = to;
+        int fromX = 0;
+        int fromY = 0;
+        int toX = 0;
+        int toY = 0;
+        for (HashMap.Entry<Integer, Area> entrySet : Main.allRegions.entrySet()) {
+            if (from.getID() == entrySet.getKey()) {
+                fromX = (int) entrySet.getValue().getBounds().getCenterX();
+                fromY = (int) entrySet.getValue().getBounds().getCenterY();
+            }
+            if (to.getID() == entrySet.getKey()) {
+                toX = (int) entrySet.getValue().getBounds().getCenterX();
+                toY = (int) entrySet.getValue().getBounds().getCenterY();
+            }
+            daysOfMovement = (int) ((Math.abs(fromX - toX) + Math.abs(fromY - toY)) / 8);
+        }
+    }
+
+    public Region getFrom() {
+        return from;
+    }
+
+    public Region getTo() {
+        return to;
+    }
+
+    public int getDaysOfMovement() {
+        return daysOfMovement;
+    }
+
+    public void setDaysOfMovement(int daysOfMovement) {
+        this.daysOfMovement = daysOfMovement;
+    }
+
+    @Override
+    public String toString() {
+        String string = super.toString() + name + "\n";
+        string += "з регіону " + from.getName() + "\n";
+        string += "до регіону " + to.getName() + "\n";
+        string += "залишилося " + daysOfMovement + " днів";
+        return string;
+    }
+
+    @Override
+    public String getName() {
+        return OperationMovement.name;
+    }
+}
+
+class OperationBattle extends Operation {
+    public static final String name = "Битва";
+    ArrayList<Country.Military.Division> divisionsAgainst = new ArrayList<>();
+    float battleProgress;
+
+    OperationBattle() {
+
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + name;
+    }
+
+    @Override
+    public String getName() {
+        return OperationBattle.name;
+    }
+}
+
+class OperationOccupation extends Operation {
+    public static String name = "Окупація";
+    Region occupiedRegion;
+    float occupationProgress;
+
+    OperationOccupation(Region occupiedRegion) {
+        this.occupiedRegion = occupiedRegion;
+        this.occupationProgress = 0f;
+    }
+
+    @Override
+    public String toString() {
+        String string = super.toString() + name + "\n";
+        string += "у регіоні " + occupiedRegion.getName() + " з прогресом в "
+                + String.format("%.1f", occupationProgress) + "%";
+        return string;
+    }
+
+    @Override
+    public String getName() {
+        return OperationOccupation.name;
+    }
+
+    public Region getOccupiedRegion() {
+        return occupiedRegion;
+    }
+
+    public float getOccupationProgress() {
+        return occupationProgress;
+    }
+
+    public void setOccupationProgress(float occupationProgress) {
+        this.occupationProgress = occupationProgress;
     }
 }

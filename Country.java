@@ -16,6 +16,8 @@ public class Country implements Comparable<Country> {
     private String flagPath = String.format(tempFlagPath, code);
     private String portraitPath = String.format(tempPortraitPath, code + "_" + leader.ideology.valueOf());
     private Economy economy = new Economy();
+    private Diplomacy diplomacy = new Diplomacy();
+    private ArrayList<Priority> priorities = new ArrayList<>();
     private Military military = new Military();
 
     public final static String tempFlagPath = "files/flags/flag_%s.png";
@@ -221,6 +223,97 @@ public class Country implements Comparable<Country> {
         }
     }
 
+    public static class Diplomacy {
+        public ArrayList<Relation> relations = new ArrayList<>();
+
+        private Diplomacy() {
+
+        }
+
+        public static class Relation implements Comparable<Relation> {
+            private Country country;
+            private int relationLevel = 0;
+            private boolean trading = false;
+            private boolean inWar = false;
+
+            public Relation(Country country) {
+                this.country = country;
+            }
+
+            public Country getCountry() {
+                return country;
+            }
+
+            public int getRelationLevel() {
+                return relationLevel;
+            }
+
+            public boolean areTrading() {
+                return trading;
+            }
+
+            public boolean areInWar() {
+                return inWar;
+            }
+
+            public void setCountry(Country country) {
+                this.country = country;
+            }
+
+            public void setRelationLevel(int relationLevel) {
+                if (relationLevel > 100) {
+                    relationLevel = 100;
+                } else if (relationLevel < -100) {
+                    relationLevel = -100;
+                }
+                this.relationLevel = relationLevel;
+            }
+
+            public void setTrading(boolean trading) {
+                this.trading = trading;
+            }
+
+            public void setInWar(boolean inWar) {
+                if (inWar) {
+                    this.setRelationLevel(-100);
+                }
+                this.inWar = inWar;
+            }
+
+            @Override
+            public String toString() {
+                String string = "";
+                string = country.getName();
+                return string;
+            }
+
+            public String toStringForStats() {
+                String string = "";
+                string = "Держава: " + country.getName() + "\n";
+                string += "Голова: " + country.getLeader().getFullName() + "\n";
+                string += "Ідеологія: " + country.getLeader().getIdeology().toString() + "\n";
+                string += "Відносини: " + relationLevel + "\n";
+                string += "Торговий договір: " + (areTrading() ? "так" : "ні") + "\n";
+                string += "Війна: " + (areInWar() ? "так" : "ні") + "\n";
+                return string;
+            }
+
+            @Override
+            public int compareTo(Country.Diplomacy.Relation o) {
+                return this.country.compareTo(o.country);
+            }
+        }
+
+        public Relation[] getRelationsArray() {
+            Relation[] r = new Relation[relations.size()];
+            for (int i = 0; i < r.length; i++) {
+                r[i] = relations.get(i);
+            }
+            return r;
+
+        }
+    }
+
     public static class Military {
         private int manpower = 0;
         private ArrayList<Division> divisions = new ArrayList<>();
@@ -259,9 +352,11 @@ public class Country implements Comparable<Country> {
             private int number = 0;
             private int soldiers = 0;
             private float quality = 0f;
-            // TODO: equipement need
+            // fDO: equipement need
             // private float equipmentNeed = 0f;
             private Region location = Region.noRegion;
+
+            private Operation currentOperation = new OperationStaying(location);
 
             private Division(int soldiers, float quality, Region location) {
                 this.number = current_number++;
@@ -269,17 +364,21 @@ public class Country implements Comparable<Country> {
                 this.quality = quality;
                 // this.equipmentNeed = soldiers * (3 + quality * 2);
                 this.location = location;
+                this.currentOperation = new OperationStaying(location);
+            }
+
+            public Region getLocation() {
+                return location;
             }
 
             public void moveDivision(Region location) {
-                this.location = location;
+                currentOperation = new OperationMovement(this.location, location);
             }
 
             @Override
             public String toString() {
-                return "\nДивизія №" + number + " в " + soldiers + " чоловік " + " з якістю "
-                        + String.format("%.2f", quality)
-                        + " в регіоні " + location.getName();
+                return "\nДивизія №" + number + " в " + soldiers + " чоловік з якістю " + String.format("%.2f", quality)
+                        + "\n" + currentOperation.toString();
             }
         }
 
@@ -343,7 +442,7 @@ public class Country implements Comparable<Country> {
         }
     }
 
-    public static enum Ideology {
+    public enum Ideology {
         ANARCHY,
         TOTALISM,
         BILSHOVISM,
@@ -454,6 +553,14 @@ public class Country implements Comparable<Country> {
         return economy;
     }
 
+    public Diplomacy getDiplomacy() {
+        return diplomacy;
+    }
+
+    public ArrayList<Priority> getPriorities() {
+        return priorities;
+    }
+
     public Military getMilitary() {
         return military;
     }
@@ -478,6 +585,8 @@ public class Country implements Comparable<Country> {
     }
 
     public static void setCountries() {
+
+        countries = new ArrayList<>();
 
         countries.add(new Country("Україна", "UKR", new Color(80, 218, 46),
                 new Leader("Володимир Зеленський", Ideology.VOLISM, "Слуга народу", 15),
@@ -645,7 +754,56 @@ public class Country implements Comparable<Country> {
                         "Обʼєднанці", 30),
                 new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(67) }))));
 
+        setCountriesRelations();
+        setCountriesPriorities();
+
         Collections.sort(countries);
+    }
+
+    private static void setCountriesRelations() {
+        for (Country country : countries) {
+            country.diplomacy.relations.clear();
+            for (Country otherCountry : countries) {
+                if (country.equals(otherCountry)) {
+                    continue;
+                }
+                country.diplomacy.relations.add(new Country.Diplomacy.Relation(otherCountry));
+            }
+            Collections.sort(country.diplomacy.relations);
+        }
+    }
+
+    private static void setCountriesPriorities() {
+        for (Country country : countries) {
+            String code = country.code;
+            if (code.equals("UNI")) {
+                String filePath = "files/priorities/" + code + "/desc.txt";
+                try (Scanner scanner = new Scanner(new File(filePath))) {
+                    while (scanner.hasNextLine()) {
+                        int id = 0;
+                        String title = "";
+                        String description = "";
+                        if (scanner.nextLine().equals("<id>")) {
+                            id = Integer.parseInt(scanner.nextLine());
+                        }
+                        if (scanner.nextLine().equals("<title>")) {
+                            title = scanner.nextLine();
+                        }
+                        if (scanner.nextLine().equals("<description>")) {
+                            String buf = "";
+                            while (!(buf = scanner.nextLine()).equals("<description>")) {
+                                description += buf;
+                            }
+                        }
+                        Priority priority = new Priority(code, id, title, description);
+                        country.priorities.add(priority);
+                        System.out.println(priority.getTitle());
+                    }
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     public String getDescription() {
@@ -669,8 +827,53 @@ public class Country implements Comparable<Country> {
         return text;
     }
 
+    public void checkIfMoved() {
+        for (Country.Military.Division division : this.military.divisions) {
+            if (division.currentOperation.getName().equals(OperationMovement.name)) {
+                OperationMovement operationMovement = (OperationMovement) division.currentOperation;
+                if (operationMovement.getDaysOfMovement() == 0) {
+                    division.location = operationMovement.getTo();
+                    if (this.regions.contains(operationMovement.getTo())) {
+
+                        division.currentOperation = new OperationStaying(division.location);
+                    } else {
+                        division.currentOperation = new OperationOccupation(division.location);
+                    }
+                }
+                operationMovement.setDaysOfMovement(operationMovement.getDaysOfMovement() - 1);
+            }
+        }
+    }
+
+    public void checkIfOccupied() {
+        for (Country.Military.Division division : this.military.divisions) {
+            if (division.currentOperation.getName().equals(OperationOccupation.name)) {
+                OperationOccupation operationOccupation = (OperationOccupation) division.currentOperation;
+                if (operationOccupation.getOccupationProgress() >= 100f) {
+                    Iterator<Country.Diplomacy.Relation> iteratorRelation = this.diplomacy.relations.iterator();
+                    while (iteratorRelation.hasNext()) {
+                        Country.Diplomacy.Relation relation = iteratorRelation.next();
+                        if (relation.country.regions.contains(division.getLocation())) {
+                            relation.country.regions.remove(division.getLocation());
+                            this.regions.add(division.getLocation());
+                            if (relation.country.regions.size() == 0) {
+                                countries.remove(relation.getCountry());
+                                this.diplomacy.relations.remove(relation);
+                            }
+                        }
+                    }
+                    division.currentOperation = new OperationStaying(division.getLocation());
+                }
+                operationOccupation.setOccupationProgress(operationOccupation.getOccupationProgress()
+                        + ((float) (division.soldiers * 5f) / (float) division.getLocation().getPopulation()));
+            }
+        }
+    }
+
     public void moveOneDay() {
         economy.checkIfBuilt();
+        checkIfMoved();
+        checkIfOccupied();
         military.checkIfTrained();
     }
 
