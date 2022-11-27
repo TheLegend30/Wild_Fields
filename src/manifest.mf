@@ -1,0 +1,2 @@
+Package-Name: src
+Main-Class: src.Main
