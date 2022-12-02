@@ -4,6 +4,7 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.util.Random;
 
 import javax.sound.midi.MidiSystem;
 import javax.sound.midi.Sequencer;
@@ -11,7 +12,7 @@ import javax.sound.midi.Sequencer;
 public class MidiPlayer {
     private Sequencer sequencer;
     private InputStream is;
-    private int number = 1;
+    private int number = new Random().nextInt(1, new File("files/music/").list().length - 1);
 
     public MidiPlayer() {
         try {

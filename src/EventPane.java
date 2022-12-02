@@ -25,7 +25,7 @@ public class EventPane extends JOptionPane {
             new EventPane(title, text, path);
         } else if (Main.calendar.equals(new GregorianCalendar(2028, Calendar.AUGUST, 24))) {
             title = "Путін помер!";
-            text = "Президент Російської Федерації Володимир Путін \nнарешті вмер не виходячи  вже декілька місяців з коми. Уся Україна радіє!";
+            text = "Президент Російської Федерації Володимир Путін \nнарешті вмер не виходячи вже декілька місяців з коми. Уся Україна радіє!";
             path = "files/news_pics/1.png";
             new EventPane(title, text, path);
         } else if (Main.calendar.equals(new GregorianCalendar(2028, Calendar.NOVEMBER, 8))) {

@@ -4,25 +4,31 @@ import java.awt.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Scanner;
+
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JOptionPane;
+import javax.swing.plaf.ColorUIResource;
+
+import src.Country.Diplomacy.Relation;
 
 public class Country implements Comparable<Country> {
     private String name = "Пустка";
     private String code = "NON";
     private Color color = Color.YELLOW.darker();
-    private Leader leader = new Leader("Ніхто", Ideology.ANARCHY, "Немає", 0);
     private ArrayList<Region> regions = new ArrayList<>();
-    private String flagPath = String.format(tempFlagPath, code);
-    private String portraitPath = String.format(tempPortraitPath, code, leader.ideology.valueOf());
+    private Party[] parties = new Party[13];
+    private Party currentParty = new Party("Ніхто", Ideology.ANARCHY, 0, "Немає");
+    private String flagPath = String.format(tempFlagPath, code, 0);
+    private String portraitPath = String.format(tempPortraitPath, code, currentParty.ideology.valueOf());
     private Economy economy = new Economy();
     private Diplomacy diplomacy = new Diplomacy();
     private ArrayList<Priority> priorities = new ArrayList<>();
     private Military military = new Military();
 
-    public final static String tempFlagPath = "files/countries/%s/flags/flag.png";
+    public final static String tempFlagPath = "files/countries/%s/flags/flag_%d.png";
     public final static String tempPortraitPath = "files/countries/%s/portraits/portrait_%d.png";
 
     public static ArrayList<Country> countries = new ArrayList<>();
@@ -30,50 +36,52 @@ public class Country implements Comparable<Country> {
     Country() {
     }
 
-    Country(String name, String code, Color color, Leader leader, ArrayList<Region> regions) {
+    Country(String name, String code, Color color, Party[] parties, int numberOfParty,
+            ArrayList<Region> regions) {
         this.name = name;
         this.code = code;
         this.color = color;
-        this.leader = leader;
+        this.parties = parties;
+        this.currentParty = parties[numberOfParty];
         this.regions = regions;
-        this.flagPath = String.format(tempFlagPath, code);
-        this.portraitPath = String.format(tempPortraitPath, code, leader.ideology.valueOf());
+        this.flagPath = String.format(tempFlagPath, code, 0);
+        this.portraitPath = String.format(tempPortraitPath, code, currentParty.ideology.valueOf());
         this.economy = new Economy(this);
         this.military = new Military(this);
     }
 
-    public static class Leader {
-        private String fullName;
-        private Ideology ideology;
-        private String partyName;
-        private float popularity;
+    public static class Party {
+        private String partyName = "Ніхто";
+        private Ideology ideology = Ideology.ANARCHY;
+        private float popularity = 0;
+        private String leaderName = "Немає";
 
-        public Leader(String fullName, Ideology ideology, String partyName, float popularity) {
-            this.fullName = fullName;
-            this.ideology = ideology;
+        public Party(String partyName, Ideology ideology, float popularity, String leaderName) {
             this.partyName = partyName;
+            this.ideology = ideology;
             if (popularity > 100f) {
                 popularity = 100f;
             } else if (popularity < 0f) {
                 popularity = 0f;
             }
             this.popularity = popularity;
-        }
-
-        public String getFullName() {
-            return fullName;
-        }
-
-        public Ideology getIdeology() {
-            return ideology;
+            this.leaderName = leaderName;
         }
 
         public String getPartyName() {
             return partyName;
         }
 
+        public Ideology getIdeology() {
+            return ideology;
+        }
+
         public float getPopularity() {
             return popularity;
+        }
+
+        public String getLeaderName() {
+            return leaderName;
         }
 
         public void setPopularity(float popularity) {
@@ -174,12 +182,20 @@ public class Country implements Comparable<Country> {
             return factoriesTaxesModifier;
         }
 
+        public long getReserve() {
+            return reserve;
+        }
+
         public void setPopulationTaxesModifier(int populationTaxesModifier) {
             this.populationTaxesModifier = populationTaxesModifier;
         }
 
         public void setFactoriesTaxesModifier(int factoriesTaxesModifier) {
             this.factoriesTaxesModifier = factoriesTaxesModifier;
+        }
+
+        public void setReserve(long reserve) {
+            this.reserve = reserve;
         }
 
         public void buildFactory(Region region) {
@@ -292,8 +308,8 @@ public class Country implements Comparable<Country> {
             public String toStringForStats() {
                 String string = "";
                 string = "Держава: " + country.getName() + "\n";
-                string += "Голова: " + country.getLeader().getFullName() + "\n";
-                string += "Ідеологія: " + country.getLeader().getIdeology().toString() + "\n";
+                string += "Голова: " + country.getCurrentParty().getLeaderName() + "\n";
+                string += "Ідеологія: " + country.getCurrentParty().getIdeology().toString() + "\n";
                 string += "Відносини: " + relationLevel + "\n";
                 string += "Торговий договір: " + (areTrading() ? "так" : "ні") + "\n";
                 string += "Війна: " + (areInWar() ? "так" : "ні") + "\n";
@@ -448,7 +464,7 @@ public class Country implements Comparable<Country> {
         ANARCHY,
         TOTALISM,
         BILSHOVISM,
-        MENSHEVISM,
+        MENSHOVISM,
         SOCIAL_DEMOCRACY,
         VOLISM,
         ANARCHO_CAPITALISM,
@@ -462,33 +478,99 @@ public class Country implements Comparable<Country> {
         public int valueOf() {
             switch (this) {
                 case ANARCHY:
-                    return 1;
+                    return 0;
                 case TOTALISM:
-                    return 2;
+                    return 1;
                 case BILSHOVISM:
+                    return 2;
+                case MENSHOVISM:
                     return 3;
-                case MENSHEVISM:
-                    return 4;
                 case SOCIAL_DEMOCRACY:
-                    return 5;
+                    return 4;
                 case VOLISM:
-                    return 6;
+                    return 5;
                 case ANARCHO_CAPITALISM:
-                    return 7;
+                    return 6;
                 case TRADITIONALISM:
-                    return 8;
+                    return 7;
                 case RETROGRADISM:
-                    return 9;
+                    return 8;
                 case CORPORATISM:
-                    return 10;
+                    return 9;
                 case DONTSOVISM:
-                    return 11;
+                    return 10;
                 case BANDERISM:
-                    return 12;
+                    return 11;
                 case RADICALISM:
-                    return 13;
+                    return 12;
                 default:
                     return 0;
+            }
+        }
+
+        public static Color getIdeologyColor(int n) {
+            switch (n) {
+                case 0:
+                    return new ColorUIResource(78, 63, 63);
+                case 1:
+                    return new ColorUIResource(84, 8, 8);
+                case 2:
+                    return new ColorUIResource(141, 31, 31);
+                case 3:
+                    return new ColorUIResource(212, 5, 5);
+                case 4:
+                    return new ColorUIResource(253, 113, 113);
+                case 5:
+                    return new ColorUIResource(249, 177, 54);
+                case 6:
+                    return new ColorUIResource(242, 249, 54);
+                case 7:
+                    return new ColorUIResource(51, 103, 247);
+                case 8:
+                    return new ColorUIResource(2, 2, 149);
+                case 9:
+                    return new ColorUIResource(102, 204, 255);
+                case 10:
+                    return new ColorUIResource(102, 102, 51);
+                case 11:
+                    return new ColorUIResource(70, 44, 10);
+                case 12:
+                    return new ColorUIResource(51, 212, 84);
+                default:
+                    return new ColorUIResource(255, 255, 255);
+            }
+        }
+
+        public static Ideology getIdeology(int n) {
+            switch (n) {
+                case 0:
+                    return ANARCHY;
+                case 1:
+                    return TOTALISM;
+                case 2:
+                    return BILSHOVISM;
+                case 3:
+                    return MENSHOVISM;
+                case 4:
+                    return SOCIAL_DEMOCRACY;
+                case 5:
+                    return VOLISM;
+                case 6:
+                    return ANARCHO_CAPITALISM;
+                case 7:
+                    return TRADITIONALISM;
+                case 8:
+                    return RETROGRADISM;
+                case 9:
+                    return CORPORATISM;
+                case 10:
+                    return DONTSOVISM;
+                case 11:
+                    return BANDERISM;
+                case 12:
+                    return RADICALISM;
+                default:
+                    return ANARCHY;
             }
         }
 
@@ -501,7 +583,7 @@ public class Country implements Comparable<Country> {
                     return "Тоталізм";
                 case BILSHOVISM:
                     return "Більшовизм";
-                case MENSHEVISM:
+                case MENSHOVISM:
                     return "Меньшовизм";
                 case SOCIAL_DEMOCRACY:
                     return "Соціал-Демократія";
@@ -535,8 +617,8 @@ public class Country implements Comparable<Country> {
         return color;
     }
 
-    public Leader getLeader() {
-        return leader;
+    public Party getCurrentParty() {
+        return currentParty;
     }
 
     public ArrayList<Region> getRegions() {
@@ -567,6 +649,14 @@ public class Country implements Comparable<Country> {
         return military;
     }
 
+    public Party[] getParties() {
+        return parties;
+    }
+
+    public void setFlagPath(int i) {
+        this.flagPath = String.format(tempFlagPath, code, i);
+    }
+
     @Override
     public String toString() {
         return getName();
@@ -575,9 +665,9 @@ public class Country implements Comparable<Country> {
     public String toStringForStats() {
         String string = "";
         string += "Назва держави: " + getName() + "\n";
-        string += "Голова держави: " + getLeader().fullName + "\n";
-        string += "Правляча партія: " + getLeader().partyName + "\n";
-        string += "Ідеологія: " + getLeader().ideology + "\n";
+        string += "Голова держави: " + getCurrentParty().leaderName + "\n";
+        string += "Правляча партія: " + getCurrentParty().partyName + "\n";
+        string += "Ідеологія: " + getCurrentParty().ideology + "\n";
         return string;
     }
 
@@ -681,51 +771,51 @@ public class Country implements Comparable<Country> {
         // "Вільні сталкери", 35),
         // new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(15) }))));
 
-        countries.add(new Country("СС \"Юнґе Адлер\"", "UNI", new Color(249,
-                239, 202),
-                new Leader("Мікаель фон Поплавскі", Ideology.RADICALISM,
-                        "НСУАП - Флюґель дер Аґрономен", 100),
-                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(243),
-                        Region.getRegionByID(246), Region.getRegionByID(253) }))));
+        try (Scanner scanner = new Scanner(new File("files/text_files/text_countries.txt"))) {
+            while (scanner.hasNextLine()) {
+                String name = "";
+                String code = "";
+                Color color = null;
+                Party[] parties = new Party[13];
+                int numberOfParty = 0;
+                ArrayList<Region> regions = new ArrayList<>();
 
-        countries.add(new Country("Світловодськ", "SVT", new Color(255,
-                196, 222),
-                new Leader("Микола Хрієнко", Ideology.VOLISM,
-                        "Нові Поступовці", 50),
-                new ArrayList<>(
-                        Arrays.asList(new Region[] { Region.getRegionByID(173) }))));
+                if (scanner.nextLine().equals("<name>")) {
+                    name = scanner.nextLine();
+                }
+                if (scanner.nextLine().equals("<code>")) {
+                    code = scanner.nextLine();
+                }
+                if (scanner.nextLine().equals("<color>")) {
+                    color = new ColorUIResource(Integer.parseInt(scanner.nextLine()),
+                            Integer.parseInt(scanner.nextLine()),
+                            Integer.parseInt(scanner.nextLine()));
+                }
+                if (scanner.nextLine().equals("<parties>")) {
+                    for (int i = 0; i < parties.length; i++) {
+                        parties[i] = new Party(scanner.nextLine(), Ideology.getIdeology(i),
+                                Integer.parseInt(scanner.nextLine()), scanner.nextLine());
+                    }
+                }
+                if (scanner.nextLine().equals("<numberOfParty>")) {
+                    numberOfParty = Integer.parseInt(scanner.nextLine());
+                }
+                if (scanner.nextLine().equals("<regions>")) {
+                    while (true) {
+                        String buf = scanner.nextLine();
+                        if (buf.equals("<regions>")) {
+                            break;
+                        }
+                        regions.add(Region.getRegionByID(Integer.parseInt(buf)));
+                    }
+                }
 
-        countries.add(new Country("РУНВіровці", "RUN", new Color(42,
-                98, 193),
-                new Leader("Олег Безверхий", Ideology.RETROGRADISM,
-                        "Силенкоїсти", 100),
-                new ArrayList<>(
-                        Arrays.asList(new Region[] { Region.getRegionByID(209) }))));
-
-        countries.add(new Country("ФК \"Інгулець\"", "INH", new Color(218, 103, 24),
-                new Leader("Олександр Поворознюк", Ideology.TRADITIONALISM,
-                        "Рада директорів ТОВ \"Агрофірма Пʼятихатська\"", 85),
-                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(245) }))));
-
-        countries.add(new Country("Новомиргород", "NMR", new Color(0, 146, 63),
-                new Leader("Олександр Жовна", Ideology.SOCIAL_DEMOCRACY,
-                        "Спілка педагогів Новомиргорода", 55),
-                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(195) }))));
-
-        countries.add(new Country("Знамʼянська радянська адміністрація", "ZNM", new Color(255, 56, 63),
-                new Leader("Євген Мармазов", Ideology.TOTALISM,
-                        "КПУ - Мармазовці", 85),
-                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(187) }))));
-
-        countries.add(new Country("Театр Корифеїв", "KOR", new Color(233, 117, 13),
-                new Leader("Лесь Подервʼянський", Ideology.VOLISM,
-                        "Союз Художників", 60),
-                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(213), Region.getRegionByID(226) }))));
-
-        countries.add(new Country("Екзампей", "EKZ", new Color(124, 124, 228),
-                new Leader("Сергій Полін", Ideology.RETROGRADISM,
-                        "Группа археологів", 35),
-                new ArrayList<>(Arrays.asList(new Region[] { Region.getRegionByID(280) }))));
+                Country country = new Country(name, code, color, parties, numberOfParty, regions);
+                countries.add(country);
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
 
         // countries.add(new Country("Чигиринський полк", "CHH", new Color(216,
         // 29, 79),
@@ -802,6 +892,7 @@ public class Country implements Comparable<Country> {
                     int id = 0;
                     String title = "";
                     String description = "";
+                    PriorityEffect priorityEffect = null;
                     if (scanner.nextLine().equals("<id>")) {
                         id = Integer.parseInt(scanner.nextLine());
                     }
@@ -814,7 +905,13 @@ public class Country implements Comparable<Country> {
                             description += buf + "\n";
                         }
                     }
-                    Priority priority = new Priority(code, id, title, description);
+
+                    if (scanner.nextLine().equals("<effect>")) {
+                        priorityEffect = new PriorityEffect(scanner.nextLine());
+                        scanner.nextLine();
+                    }
+
+                    Priority priority = new Priority(code, id, title, description, priorityEffect);
                     country.priorities.add(priority);
                 }
             } catch (FileNotFoundException e) {
@@ -844,7 +941,33 @@ public class Country implements Comparable<Country> {
         return text;
     }
 
-    public void checkIfMoved() {
+    private void checkIfExisting() {
+        Iterator<Country> iteratorCountry = countries.iterator();
+        while (iteratorCountry.hasNext()) {
+            Country country = iteratorCountry.next();
+            if (country.regions.size() == 0) {
+                iteratorCountry.remove();
+                for (Country otherCountry : countries) {
+                    for (Relation relation : otherCountry.getDiplomacy().relations) {
+                        if (relation.country.equals(country)) {
+                            otherCountry.getDiplomacy().relations.remove(relation);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if (countries.size() != 1) {
+            Main.countriesRelationsComboBox
+                    .setModel(new DefaultComboBoxModel<Relation>(getDiplomacy().getRelationsArray()));
+        } else {
+            JOptionPane.showConfirmDialog(null, "Ви обʼєднали Україну!", "Перемога", JOptionPane.OK_OPTION);
+            System.exit(0);
+        }
+
+    }
+
+    private void checkIfMoved() {
         for (Country.Military.Division division : this.military.divisions) {
             if (division.currentOperation.getName().equals(OperationMovement.name)) {
                 OperationMovement operationMovement = (OperationMovement) division.currentOperation;
@@ -862,7 +985,7 @@ public class Country implements Comparable<Country> {
         }
     }
 
-    public void checkIfOccupied() {
+    private void checkIfOccupied() {
         for (Country.Military.Division division : this.military.divisions) {
             if (division.currentOperation.getName().equals(OperationOccupation.name)) {
                 OperationOccupation operationOccupation = (OperationOccupation) division.currentOperation;
@@ -877,18 +1000,30 @@ public class Country implements Comparable<Country> {
                                 countries.remove(relation.getCountry());
                                 this.diplomacy.relations.remove(relation);
                             }
+                            break;
                         }
                     }
                     division.currentOperation = new OperationStaying(division.getLocation());
+                    Main.main.refresh();
                 }
                 operationOccupation.setOccupationProgress(operationOccupation.getOccupationProgress()
-                        + ((float) (division.soldiers * 5f) / (float) division.getLocation().getPopulation()));
+                        + ((float) (division.soldiers * 200f) / (float) division.getLocation().getPopulation()));
             }
         }
     }
 
+    public void changePartyPopularity(Party party, int number) {
+        for (Party p : this.parties) {
+            if (!p.equals(party)) {
+                p.setPopularity(p.getPopularity() - ((float) number / (this.parties.length - 1)));
+            }
+        }
+        party.setPopularity(party.getPopularity() + number);
+    }
+
     public void moveOneDay() {
         economy.checkIfBuilt();
+        checkIfExisting();
         checkIfMoved();
         checkIfOccupied();
         military.checkIfTrained();
@@ -901,5 +1036,13 @@ public class Country implements Comparable<Country> {
         }
         economy.update(this);
         economy.addProfit();
+    }
+
+    public void setPartyPieChart() {
+        Main.partyPieChart.clearData();
+        for (int i = 0; i < parties.length; i++) {
+            Main.partyPieChart.addData(new ModelPieChart(parties[i].getPartyName(), parties[i].getPopularity(),
+                    Ideology.getIdeologyColor(i)));
+        }
     }
 }
