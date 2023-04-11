@@ -907,7 +907,7 @@ public class Country implements Comparable<Country> {
                     }
 
                     if (scanner.nextLine().equals("<effect>")) {
-                        priorityEffect = new PriorityEffect(scanner.nextLine());
+                        priorityEffect = new PriorityEffect(country.code, scanner.nextLine());
                         scanner.nextLine();
                     }
 

@@ -385,7 +385,7 @@ public class Main {
             calendar.add(Calendar.DATE, 1);
             calendarLabel.setText(dateFormat.format(calendar.getTime()));
             yourCountry.moveOneDay();
-            EventPane.showNews();
+            // EventPane.showNews();
             if (calendar.get(Calendar.DAY_OF_MONTH) == 1) {
                 yourCountry.moveOneMonth();
             }

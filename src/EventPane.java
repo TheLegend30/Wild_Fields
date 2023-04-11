@@ -1,11 +1,15 @@
 package src;
 
-import java.util.Calendar;
-import java.util.GregorianCalendar;
+import java.util.Scanner;
+
 import javax.swing.ImageIcon;
 import javax.swing.JOptionPane;
 
 public class EventPane extends JOptionPane {
+
+    private String newsPath = "files/news/pics/%d.png";
+    private String eventPath = "files/countries/%s/events/pics/%d.png";
+
     private EventPane(String title, String text, String path) {
 
         ImageIcon icon = new ImageIcon(path);
@@ -16,28 +20,61 @@ public class EventPane extends JOptionPane {
                 icon);
     }
 
-    public static void showNews() {
-        String title, text, path;
-        if (Main.calendar.equals(new GregorianCalendar(2028, Calendar.JULY, 7))) {
-            title = "Тайвань капітулював!";
-            text = "Тайвань або Республіка Китай капітулювала чим закінчила китайську \"громадянську\" війну, що почалася ще з \nминулогу століття. Сьогодні був підписаний трьох-сторонній \nдоговір між КНР (Сі Цзінпінь), США (Берні Сандерс) та Тайванем (Лай Цінде) про приєднання Тайваня до КНР та повне визнання цього з боку інших держав";
-            path = "files/news_pics/0.png";
-            new EventPane(title, text, path);
-        } else if (Main.calendar.equals(new GregorianCalendar(2028, Calendar.AUGUST, 24))) {
-            title = "Путін помер!";
-            text = "Президент Російської Федерації Володимир Путін \nнарешті вмер не виходячи вже декілька місяців з коми. Уся Україна радіє!";
-            path = "files/news_pics/1.png";
-            new EventPane(title, text, path);
-        } else if (Main.calendar.equals(new GregorianCalendar(2028, Calendar.NOVEMBER, 8))) {
-            title = "Крах NASDAQ!";
-            text = "Світова біржа зазналу колапсу через луснувшу економічну бульбашку, \nщо існувала в західних країнах ще з 2023 року. Нова світова економічна криза неминуча!";
-            path = "files/news_pics/2.png";
-            new EventPane(title, text, path);
-        } else if (Main.calendar.equals(new GregorianCalendar(2029, Calendar.JANUARY, 20))) {
-            title = "Президентом США став Кокеш!";
-            text = "На виборах 2028 у Америці вперше за декілька столітть переміг кандидат \nне від республіканської чи демократичної партії Адам Кокеш. Сьогодні відбулалася інавгурація президента-лібертаріанця";
-            path = "files/news_pics/3.png";
-            new EventPane(title, text, path);
+    // public static void showNews() {
+    // String title, text, path;
+    // try (Scanner scanner = new Scanner(new File("files/news/text_news.txt"))) {
+    // if (Main.calendar.equals(new GregorianCalendar(2028, Calendar.JULY, 7))) {
+    // if (scanner.nextLine().equals(path))
+    // new EventPane(title, text, path);
+    // } else if (Main.calendar.equals(new GregorianCalendar(2028, Calendar.AUGUST,
+    // 24))) {
+    // new EventPane(title, text, path);
+    // } else if (Main.calendar.equals(new GregorianCalendar(2028,
+    // Calendar.NOVEMBER, 8))) {
+    // new EventPane(title, text, path);
+    // } else if (Main.calendar.equals(new GregorianCalendar(2029, Calendar.JANUARY,
+    // 20))) {
+    // new EventPane(title, text, path);
+    // }
+    // } catch (FileNotFoundException e) {
+    // e.printStackTrace();
+    // }
+
+    // }
+
+    public static void showEvent(String code, int i) {
+        String path = "files/countries/" + code + "/events";
+        ImageIcon icon = new ImageIcon(path + "/pics/" + i + ".png");
+
+        Scanner scanner = new Scanner(path + "desc.txt");
+        String title = "";
+        String description = "";
+        int id = 0;
+
+        while (true) {
+            if (scanner.nextLine().equals("<id>")) {
+                id = Integer.parseInt(scanner.nextLine());
+                if (id == i) {
+                    break;
+                }
+            }
         }
+        if (scanner.nextLine().equals("<title>")) {
+            title = scanner.nextLine();
+        }
+        if (scanner.nextLine().equals("<description>")) {
+            String buf = "";
+            while (!(buf = scanner.nextLine()).equals("<description>")) {
+                description += buf + "\n";
+            }
+        }
+
+        JOptionPane.showMessageDialog(
+                null,
+                description,
+                title, JOptionPane.INFORMATION_MESSAGE,
+                icon);
+
+        scanner.close();
     }
 }

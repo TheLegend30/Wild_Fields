@@ -11,7 +11,7 @@
 Тому необхідно укріпити свою позицію в ролі голови Знамʼянської адміністрації.
 <description>
 <effect>
-improveVolist
+showEvent
 <effect>
 <id>
 2
